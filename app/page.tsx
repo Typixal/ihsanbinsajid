@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, FC } from "react";
+import { useState, useEffect, useRef, useCallback, FC, RefObject } from "react";
 
 // ─────────────────────────────────────────────────────────────
 //  TYPES
@@ -42,7 +42,6 @@ const LOAD_LINES: string[] = [
   "ALL SYSTEMS NOMINAL. LAUNCHING.",
 ];
 
-// level = radar axis height 0–10
 const SKILLS: SkillDef[] = [
   { cat: "Languages", level: 9, items: ["Python", "Java", "C", "Bash", "SQL"] },
   {
@@ -140,21 +139,143 @@ function randHex(len = 8): string {
   ).join("");
 }
 
+// Formats a coord number, optionally "jittering" it
+function jitterCoord(base: number, jitter: boolean): string {
+  if (!jitter) return base.toFixed(2);
+  return (base + (Math.random() - 0.5) * 2).toFixed(2);
+}
+
 // ─────────────────────────────────────────────────────────────
-//  3-D GLASS ORBS BACKGROUND  (pure CSS + inline keyframes)
-//  Uses 6 absolutely-positioned divs with backdrop-filter.
-//  No canvas, no WebGL — GPU-composited but very light.
+//  HOOK: useScrollReveal
+//  Attaches an IntersectionObserver to the returned ref.
+//  Once the element enters the viewport, adds `.is-visible`.
+//  threshold: 0.12 means 12% of the element must be visible.
+// ─────────────────────────────────────────────────────────────
+function useScrollReveal<T extends HTMLElement>(
+  threshold = 0.12,
+): RefObject<T | null> {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            // Once visible, stop watching — no repeated re-triggers
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return ref;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  HOOK: useParallaxOrbs
+//  Returns a translateY offset (in px) derived from scrollY,
+//  at a reduced rate (factor) so orbs drift slower than page.
+//  Uses passive scroll listener + rAF for performance.
+// ─────────────────────────────────────────────────────────────
+function useParallaxOrbs(factor = 0.18): number {
+  const [offset, setOffset] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        setOffset(window.scrollY * factor);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [factor]);
+
+  return offset;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  HOOK: useScrollJitter
+//  Returns true while the user is actively scrolling.
+//  Resets after 500 ms of inactivity.
+// ─────────────────────────────────────────────────────────────
+function useScrollJitter(): boolean {
+  const [jitter, setJitter] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setJitter(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setJitter(false), 500);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return jitter;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  GLASS ORBS BACKGROUND  — parallax-linked
 // ─────────────────────────────────────────────────────────────
 const ORBS = [
-  { size: 340, top: "8%", left: "12%", delay: "0s", dur: "18s" },
-  { size: 260, top: "55%", left: "70%", delay: "-6s", dur: "22s" },
-  { size: 200, top: "75%", left: "20%", delay: "-3s", dur: "16s" },
-  { size: 180, top: "20%", left: "60%", delay: "-10s", dur: "20s" },
-  { size: 140, top: "45%", left: "40%", delay: "-8s", dur: "14s" },
-  { size: 120, top: "10%", left: "85%", delay: "-14s", dur: "25s" },
+  { size: 340, top: "8%", left: "12%", delay: "0s", dur: "18s", pSpeed: 0.12 },
+  { size: 260, top: "55%", left: "70%", delay: "-6s", dur: "22s", pSpeed: 0.2 },
+  {
+    size: 200,
+    top: "75%",
+    left: "20%",
+    delay: "-3s",
+    dur: "16s",
+    pSpeed: 0.08,
+  },
+  {
+    size: 180,
+    top: "20%",
+    left: "60%",
+    delay: "-10s",
+    dur: "20s",
+    pSpeed: 0.16,
+  },
+  {
+    size: 140,
+    top: "45%",
+    left: "40%",
+    delay: "-8s",
+    dur: "14s",
+    pSpeed: 0.24,
+  },
+  {
+    size: 120,
+    top: "10%",
+    left: "85%",
+    delay: "-14s",
+    dur: "25s",
+    pSpeed: 0.1,
+  },
 ];
 
-const GlassBackground: FC<{ enabled: boolean }> = ({ enabled }) => {
+const GlassBackground: FC<{ enabled: boolean; scrollOffset: number }> = ({
+  enabled,
+  scrollOffset,
+}) => {
   if (!enabled) return null;
   return (
     <div className="glass-bg" aria-hidden="true">
@@ -169,6 +290,8 @@ const GlassBackground: FC<{ enabled: boolean }> = ({ enabled }) => {
             left: o.left,
             animationDelay: o.delay,
             animationDuration: o.dur,
+            // Each orb moves at its own speed, creating depth layering
+            transform: `translateY(${scrollOffset * o.pSpeed}px)`,
           }}
         />
       ))}
@@ -177,24 +300,20 @@ const GlassBackground: FC<{ enabled: boolean }> = ({ enabled }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  HEX STREAM — Memory Dump sidebar
+//  HEX STREAM
 // ─────────────────────────────────────────────────────────────
 const HexStream: FC = () => {
-  // Start with an empty array so the Server and Client match initially
   const [lines, setLines] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-
-    // Initialize the first 30 lines ONLY on the client
     const initialLines = Array.from(
       { length: 30 },
       () => `0x${randHex(4)}: ${randHex(8)} ${randHex(8)} ${randHex(8)}`,
     );
     setLines(initialLines);
-
     const id = setInterval(() => {
       setLines((l) => {
         const next = [...l];
@@ -203,14 +322,10 @@ const HexStream: FC = () => {
         return next;
       });
     }, 60);
-
     return () => clearInterval(id);
   }, []);
 
-  // Return a matching empty div if not mounted yet
-  if (!mounted) {
-    return <div className="hex-stream" />;
-  }
+  if (!mounted) return <div className="hex-stream" />;
 
   return (
     <div className="hex-stream">
@@ -413,7 +528,6 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
       <div className="shutter-bottom" />
       <WorldMap />
       <div className="loader-scanlines" />
-      {/* Skip button */}
       <button className="loader-skip" onClick={finish}>
         SKIP ▶▶
       </button>
@@ -553,7 +667,7 @@ const TypeWriter: FC<TypeWriterProps> = ({ text, speed = 40, onDone }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  HUD OVERLAYS
+//  HUD OVERLAYS  — coord jitters while scrolling
 // ─────────────────────────────────────────────────────────────
 const SignalBars: FC = () => {
   const [bars, setBars] = useState([5, 5, 4, 5, 3]);
@@ -592,7 +706,38 @@ const BitrateCounter: FC = () => {
   return <span className="bitrate-val">{kbps.toLocaleString()} KBPS</span>;
 };
 
-const HudOverlays: FC<{ enabled: boolean }> = ({ enabled }) => {
+// Jittering coord display — rapidly cycles numbers for 500ms on scroll
+const JitterCoord: FC<{ base: number; suffix: string; jitter: boolean }> = ({
+  base,
+  suffix,
+  jitter,
+}) => {
+  const [display, setDisplay] = useState(base.toFixed(2));
+
+  useEffect(() => {
+    if (!jitter) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDisplay(base.toFixed(2));
+      return;
+    }
+    // While jittering, update every 60ms with noisy values
+    const id = setInterval(() => {
+      setDisplay(jitterCoord(base, true));
+    }, 60);
+    return () => clearInterval(id);
+  }, [jitter, base]);
+
+  return (
+    <span className={jitter ? "coord-jitter" : ""}>
+      {display}°{suffix}
+    </span>
+  );
+};
+
+const HudOverlays: FC<{ enabled: boolean; scrollJitter: boolean }> = ({
+  enabled,
+  scrollJitter,
+}) => {
   if (!enabled) return null;
   return (
     <>
@@ -609,8 +754,18 @@ const HudOverlays: FC<{ enabled: boolean }> = ({ enabled }) => {
       </div>
       <div className="hud-corner hud-bl">
         <div className="hud-label">COORD</div>
-        <div className="hud-val">10.85°N / 76.27°E</div>
-        <div className="hud-subval">KERALA, INDIA</div>
+        <div className="hud-val">
+          <JitterCoord base={10.85} suffix="N" jitter={scrollJitter} />
+          {" / "}
+          <JitterCoord base={76.27} suffix="E" jitter={scrollJitter} />
+        </div>
+        <div className="hud-subval">
+          {scrollJitter ? (
+            <span className="coord-jitter">TRACKING...</span>
+          ) : (
+            "KERALA, INDIA"
+          )}
+        </div>
       </div>
       <div className="hud-corner hud-br">
         <div className="hud-label">USER_ID</div>
@@ -643,7 +798,6 @@ const EffectsToggle: FC<EffectsToggleProps> = ({ effects, onChange }) => (
 
 // ─────────────────────────────────────────────────────────────
 //  RADAR SKILLS
-//  Single radar chart with hover-reveal skill pills around it.
 // ─────────────────────────────────────────────────────────────
 const RadarSkills: FC = () => {
   const [active, setActive] = useState(false);
@@ -667,19 +821,16 @@ const RadarSkills: FC = () => {
 
   return (
     <>
-      {/* BACKGROUND DIMMER */}
       <div
         className={`radar-backdrop ${active ? "active" : ""}`}
         onClick={() => setActive(false)}
       />
-
       <div
         className={`radar-module-container ${active ? "is-active" : ""}`}
         onMouseEnter={() => setActive(true)}
         onMouseLeave={() => setActive(false)}
       >
         <div className="radar-card">
-          {/* CARD HUD HEADER */}
           <div className="radar-card-header">
             <div className="status-tag">
               <span className="blink-dot" /> SYSTEM_SCAN:{" "}
@@ -687,9 +838,7 @@ const RadarSkills: FC = () => {
             </div>
             <div className="serial-no">SKL_MTX_PRTCL_V4</div>
           </div>
-
           <div className="radar-layout">
-            {/* LEFT: THE SVG RADAR */}
             <div className="radar-svg-wrap">
               <svg
                 className="radar-svg"
@@ -711,10 +860,7 @@ const RadarSkills: FC = () => {
                     />
                   </radialGradient>
                 </defs>
-
                 <circle cx={CX} cy={CY} r={R} fill="url(#radar-glow)" />
-
-                {/* CONCENTRIC RINGS */}
                 {levels.map((l, li) => (
                   <polygon
                     key={li}
@@ -726,8 +872,6 @@ const RadarSkills: FC = () => {
                     strokeOpacity={0.1 + li * 0.1}
                   />
                 ))}
-
-                {/* AXIS LINES */}
                 {SKILLS.map((_, i) => {
                   const end = pt(i, 1);
                   return (
@@ -741,8 +885,6 @@ const RadarSkills: FC = () => {
                     />
                   );
                 })}
-
-                {/* SCANNING SWEEP */}
                 {active && (
                   <g className="radar-sweep-group">
                     <line
@@ -779,11 +921,7 @@ const RadarSkills: FC = () => {
                     </defs>
                   </g>
                 )}
-
-                {/* FILLED POLYGON */}
                 <polygon points={poly} className="radar-poly-main" />
-
-                {/* VERTICES */}
                 {SKILLS.map((s, i) => {
                   const p = pt(i, s.level / 10);
                   return (
@@ -798,8 +936,6 @@ const RadarSkills: FC = () => {
                 })}
               </svg>
             </div>
-
-            {/* RIGHT: DATA READOUT PANEL */}
             <div className="radar-data-panel">
               {SKILLS.map((s, i) => (
                 <div
@@ -822,7 +958,6 @@ const RadarSkills: FC = () => {
               ))}
             </div>
           </div>
-
           <div className="radar-card-footer">
             OPERATOR: IHSAN_BIN_SAJID // DATA_STREAM:{" "}
             {active ? "STABLE" : "STANDBY"}
@@ -1048,7 +1183,7 @@ const Nav: FC<NavProps> = ({ onTerminal, effects, onEffects }) => {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
+    window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
   const scroll = (id: string) =>
@@ -1083,8 +1218,9 @@ const Nav: FC<NavProps> = ({ onTerminal, effects, onEffects }) => {
 interface HeroProps {
   onTerminal: () => void;
   effects: boolean;
+  scrollJitter: boolean;
 }
-const Hero: FC<HeroProps> = ({ onTerminal, effects }) => {
+const Hero: FC<HeroProps> = ({ onTerminal, effects, scrollJitter }) => {
   const [phase, setPhase] = useState(0);
   return (
     <section id="hero" className="hero">
@@ -1095,7 +1231,7 @@ const Hero: FC<HeroProps> = ({ onTerminal, effects }) => {
         </>
       )}
       <div className="hero-grid-bg" />
-      <HudOverlays enabled={effects} />
+      <HudOverlays enabled={effects} scrollJitter={scrollJitter} />
       <div className="hero-content">
         <div className="hero-eyebrow">
           <TypeWriter
@@ -1142,173 +1278,208 @@ const Hero: FC<HeroProps> = ({ onTerminal, effects }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  ABOUT
+//  ABOUT  — scroll-reveal
 // ─────────────────────────────────────────────────────────────
-const About: FC = () => (
-  <section id="about" className="section">
-    <div className="section-inner">
-      <h2 className="section-title">
-        <span className="cyan">01.</span> About Me
-      </h2>
-      <div className="about-grid">
-        <div className="about-text">
-          <p>
-            Electronics and Computer Engineering student with a strong
-            foundation in Python, Java, and C. Passionate about{" "}
-            <span className="cyan">cybersecurity</span>, DevOps, and automation
-            — with hands-on experience in penetration testing, system scripting,
-            and infrastructure tooling.
-          </p>
-          <p>
-            I&apos;ve broken buffer overflows, forged CRCs, and exploited Modbus
-            ICS — mostly on purpose. Also building things: from face-recognition
-            attendance systems to DIY sim rigs and motion capture hardware.
-          </p>
-          <p>
-            Currently developing <span className="cyan">Katana</span> — a DIY
-            motion capture system. Running EndeavourOS + Hyprland because
-            comfort is overrated.
-          </p>
-        </div>
-        <div className="about-card">
-          <div className="about-card-inner">
-            <div className="about-stat">
-              <span className="stat-num cyan">B.Tech</span>
-              <span>ECE · Expected May 2027</span>
-            </div>
-            <div className="about-stat">
-              <span className="stat-num cyan">6+</span>
-              <span>Projects Shipped</span>
-            </div>
-            <div className="about-stat">
-              <span className="stat-num cyan">CTF</span>
-              <span>TryHackMe · HackTheBox</span>
-            </div>
-            <div className="about-badge">
-              <span className="badge-dot" /> Open to opportunities
+const About: FC = () => {
+  const ref = useScrollReveal<HTMLElement>();
+  return (
+    <section id="about" className="section reveal-section" ref={ref}>
+      <div className="section-inner">
+        <h2 className="section-title reveal-title">
+          <span className="cyan">01.</span> About Me
+        </h2>
+        <div className="about-grid reveal-content">
+          <div className="about-text">
+            <p>
+              Electronics and Computer Engineering student with a strong
+              foundation in Python, Java, and C. Passionate about{" "}
+              <span className="cyan">cybersecurity</span>, DevOps, and
+              automation — with hands-on experience in penetration testing,
+              system scripting, and infrastructure tooling.
+            </p>
+            <p>
+              I&apos;ve broken buffer overflows, forged CRCs, and exploited
+              Modbus ICS — mostly on purpose. Also building things: from
+              face-recognition attendance systems to DIY sim rigs and motion
+              capture hardware.
+            </p>
+            <p>
+              Currently developing <span className="cyan">Katana</span> — a DIY
+              motion capture system. Running EndeavourOS + Hyprland because
+              comfort is overrated.
+            </p>
+          </div>
+          <div className="about-card">
+            <div className="about-card-inner">
+              <div className="about-stat">
+                <span className="stat-num cyan">B.Tech</span>
+                <span>ECE · Expected May 2027</span>
+              </div>
+              <div className="about-stat">
+                <span className="stat-num cyan">6+</span>
+                <span>Projects Shipped</span>
+              </div>
+              <div className="about-stat">
+                <span className="stat-num cyan">CTF</span>
+                <span>TryHackMe · HackTheBox</span>
+              </div>
+              <div className="about-badge">
+                <span className="badge-dot" /> Open to opportunities
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────
-//  SKILLS
+//  SKILLS  — scroll-reveal
 // ─────────────────────────────────────────────────────────────
-const Skills: FC = () => (
-  <section id="skills" className="section section-alt">
-    <div className="section-inner">
-      <h2 className="section-title">
-        <span className="cyan">02.</span> Skills // Threat Matrix
-      </h2>
-      <p className="skills-hint">Hover the radar to expand skill categories</p>
-      <RadarSkills />
-    </div>
-  </section>
-);
+const Skills: FC = () => {
+  const ref = useScrollReveal<HTMLElement>();
+  return (
+    <section
+      id="skills"
+      className="section section-alt reveal-section"
+      ref={ref}
+    >
+      <div className="section-inner">
+        <h2 className="section-title reveal-title">
+          <span className="cyan">02.</span> Skills // Threat Matrix
+        </h2>
+        <div className="reveal-content">
+          <p className="skills-hint">
+            Hover the radar to expand skill categories
+          </p>
+          <RadarSkills />
+        </div>
+      </div>
+    </section>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────
-//  PROJECTS
+//  PROJECTS  — scroll-reveal
 // ─────────────────────────────────────────────────────────────
-const Projects: FC = () => (
-  <section id="projects" className="section">
-    <div className="section-inner">
-      <h2 className="section-title">
-        <span className="cyan">03.</span> Projects
-      </h2>
-      <div className="projects-grid">
-        {PROJECTS.map((p) => (
-          <div key={p.id} className="project-card">
-            <div className="project-header">
-              <span className="project-id cyan">{p.id}</span>
-              <span className={`project-status ${STATUS_CLASS[p.status]}`}>
-                {p.status}
-              </span>
-            </div>
-            <h3 className="project-title">{p.title}</h3>
-            <div className="project-period">{p.period}</div>
-            <p className="project-desc">{p.desc}</p>
-            <div className="project-tags">
-              {p.tags.map((t) => (
-                <span key={t} className="project-tag">
-                  {t}
+const Projects: FC = () => {
+  const ref = useScrollReveal<HTMLElement>();
+  return (
+    <section id="projects" className="section reveal-section" ref={ref}>
+      <div className="section-inner">
+        <h2 className="section-title reveal-title">
+          <span className="cyan">03.</span> Projects
+        </h2>
+        <div className="projects-grid reveal-content">
+          {PROJECTS.map((p) => (
+            <div key={p.id} className="project-card">
+              <div className="project-header">
+                <span className="project-id cyan">{p.id}</span>
+                <span className={`project-status ${STATUS_CLASS[p.status]}`}>
+                  {p.status}
                 </span>
-              ))}
+              </div>
+              <h3 className="project-title">{p.title}</h3>
+              <div className="project-period">{p.period}</div>
+              <p className="project-desc">{p.desc}</p>
+              <div className="project-tags">
+                {p.tags.map((t) => (
+                  <span key={t} className="project-tag">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+//  EXPERIENCE  — scroll-reveal + data-line draw
+// ─────────────────────────────────────────────────────────────
+const Experience: FC = () => {
+  const ref = useScrollReveal<HTMLElement>();
+  return (
+    <section
+      id="experience"
+      className="section section-alt reveal-section"
+      ref={ref}
+    >
+      <div className="section-inner">
+        <h2 className="section-title reveal-title">
+          <span className="cyan">04.</span> Experience &amp; Certs
+        </h2>
+        {/*
+          The data-line is the vertical cyan line on the left.
+          It lives OUTSIDE the grid so it spans full height.
+          .is-visible on the section triggers the draw animation via CSS.
+        */}
+        <div className="exp-timeline reveal-content">
+          <div className="exp-data-line" />
+          <div className="exp-grid">
+            <div className="exp-card">
+              <div className="exp-node" />
+              <div className="exp-tag">INTERNSHIP</div>
+              <h3 className="exp-title">Intern — Nexus Project</h3>
+              <div className="exp-place">
+                St. Joseph&apos;s College of Engineering and Technology, Palai
+              </div>
+              <div className="exp-period">June 2025 · 1 month</div>
+              <p className="exp-desc">
+                Hands-on project development, team collaboration, and applied
+                learning. Project lifecycles, communication workflows,
+                early-stage team dynamics.
+              </p>
+            </div>
+            <div className="exp-card">
+              <div className="exp-node" />
+              <div
+                className="exp-tag"
+                style={{ color: "#ffd700", borderColor: "#ffd700" }}
+              >
+                CTF
+              </div>
+              <h3 className="exp-title">CTF Practice</h3>
+              <div className="exp-place">TryHackMe &amp; HackTheBox</div>
+              <div className="exp-period">June 2025 – Ongoing</div>
+              <p className="exp-desc">
+                Binary exploitation, Modbus ICS, CRC forgery, web security,
+                privilege escalation. Built automation tools and payload scripts
+                in Python and Bash.
+              </p>
+            </div>
+            <div className="exp-card">
+              <div className="exp-node" />
+              <div
+                className="exp-tag"
+                style={{ color: "#00ff87", borderColor: "#00ff87" }}
+              >
+                CERT
+              </div>
+              <h3 className="exp-title">Summer Internship Certificate</h3>
+              <div className="exp-place">The Nexus Project</div>
+              <div className="exp-period">June 2025</div>
+              <p className="exp-desc">
+                Certified completion of a 1-month intensive summer internship
+                programme.
+              </p>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-// ─────────────────────────────────────────────────────────────
-//  EXPERIENCE
-// ─────────────────────────────────────────────────────────────
-const Experience: FC = () => (
-  <section id="experience" className="section section-alt">
-    <div className="section-inner">
-      <h2 className="section-title">
-        <span className="cyan">04.</span> Experience &amp; Certs
-      </h2>
-      <div className="exp-grid">
-        <div className="exp-card">
-          <div className="exp-tag">INTERNSHIP</div>
-          <h3 className="exp-title">Intern — Nexus Project</h3>
-          <div className="exp-place">
-            St. Joseph&apos;s College of Engineering and Technology, Palai
-          </div>
-          <div className="exp-period">June 2025 · 1 month</div>
-          <p className="exp-desc">
-            Hands-on project development, team collaboration, and applied
-            learning. Project lifecycles, communication workflows, early-stage
-            team dynamics.
-          </p>
-        </div>
-        <div className="exp-card">
-          <div
-            className="exp-tag"
-            style={{ color: "#ffd700", borderColor: "#ffd700" }}
-          >
-            CTF
-          </div>
-          <h3 className="exp-title">CTF Practice</h3>
-          <div className="exp-place">TryHackMe &amp; HackTheBox</div>
-          <div className="exp-period">June 2025 – Ongoing</div>
-          <p className="exp-desc">
-            Binary exploitation, Modbus ICS, CRC forgery, web security,
-            privilege escalation. Built automation tools and payload scripts in
-            Python and Bash.
-          </p>
-        </div>
-        <div className="exp-card">
-          <div
-            className="exp-tag"
-            style={{ color: "#00ff87", borderColor: "#00ff87" }}
-          >
-            CERT
-          </div>
-          <h3 className="exp-title">Summer Internship Certificate</h3>
-          <div className="exp-place">The Nexus Project</div>
-          <div className="exp-period">June 2025</div>
-          <p className="exp-desc">
-            Certified completion of a 1-month intensive summer internship
-            programme.
-          </p>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────
-//  CONTACT
-//  "Send a Message" opens mailto: — no backend needed.
-//  For a real form, see the comment block below the component.
+//  CONTACT  — scroll-reveal
 // ─────────────────────────────────────────────────────────────
 const Contact: FC = () => {
+  const ref = useScrollReveal<HTMLElement>();
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -1316,8 +1487,6 @@ const Contact: FC = () => {
 
   const handleSend = () => {
     if (!name && !body) return;
-    // Builds a mailto: link — opens the user's default email client
-    // pre-filled with the message. Zero backend required.
     const to = "ihsanbinsajid@gmail.com";
     const sub = encodeURIComponent(subject || `Portfolio contact from ${name}`);
     const bodyEnc = encodeURIComponent(`From: ${name}\n\n${body}`);
@@ -1327,93 +1496,93 @@ const Contact: FC = () => {
   };
 
   return (
-    <section id="contact" className="section">
+    <section id="contact" className="section reveal-section" ref={ref}>
       <div className="section-inner contact-inner">
-        <h2 className="section-title">
+        <h2 className="section-title reveal-title">
           <span className="cyan">05.</span> Contact
         </h2>
-        <p className="contact-sub">
-          Have a project, a question, or a CTF challenge you can&apos;t crack?
-          Reach out.
-        </p>
-        <div className="contact-links">
-          <a href="mailto:ihsanbinsajid@gmail.com" className="contact-link">
-            <span className="cyan">✉</span> ihsanbinsajid@gmail.com
-          </a>
-          <a
-            href="https://github.com/Typixal"
-            className="contact-link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span className="cyan">⌥</span> github.com/Typixal
-          </a>
-          <a
-            href="https://linkedin.com/in/ihsan-bin-sajid"
-            className="contact-link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span className="cyan">⬡</span> linkedin.com/in/ihsan-bin-sajid
-          </a>
-        </div>
-
-        {/* Contact form — mailto-powered, no backend */}
-        <div className="contact-form">
-          <div className="cf-row">
-            <input
-              className="cf-input"
-              placeholder="YOUR NAME"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input
-              className="cf-input"
-              placeholder="SUBJECT (optional)"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-          </div>
-          <textarea
-            className="cf-textarea"
-            placeholder="YOUR MESSAGE"
-            rows={4}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
-          {!sent ? (
-            <button className="btn-primary cf-send" onClick={handleSend}>
-              SEND MESSAGE <span className="cyan">▶</span>
-            </button>
-          ) : (
-            <div className="contact-sent">
-              <span className="cyan">✓</span> Opening your email client...
-            </div>
-          )}
-          <p className="cf-note">
-            Opens your default email client pre-filled. For a backend form,
-            integrate
-            <a
-              href="https://resend.com"
-              target="_blank"
-              rel="noreferrer"
-              className="cyan"
-            >
-              {" "}
-              Resend
-            </a>{" "}
-            or
-            <a
-              href="https://formspree.io"
-              target="_blank"
-              rel="noreferrer"
-              className="cyan"
-            >
-              {" "}
-              Formspree
-            </a>
-            .
+        <div className="reveal-content">
+          <p className="contact-sub">
+            Have a project, a question, or a CTF challenge you can&apos;t crack?
+            Reach out.
           </p>
+          <div className="contact-links">
+            <a href="mailto:ihsanbinsajid@gmail.com" className="contact-link">
+              <span className="cyan">✉</span> ihsanbinsajid@gmail.com
+            </a>
+            <a
+              href="https://github.com/Typixal"
+              className="contact-link"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="cyan">⌥</span> github.com/Typixal
+            </a>
+            <a
+              href="https://linkedin.com/in/ihsan-bin-sajid"
+              className="contact-link"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="cyan">⬡</span> linkedin.com/in/ihsan-bin-sajid
+            </a>
+          </div>
+          <div className="contact-form">
+            <div className="cf-row">
+              <input
+                className="cf-input"
+                placeholder="YOUR NAME"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="cf-input"
+                placeholder="SUBJECT (optional)"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+            </div>
+            <textarea
+              className="cf-textarea"
+              placeholder="YOUR MESSAGE"
+              rows={4}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+            />
+            {!sent ? (
+              <button className="btn-primary cf-send" onClick={handleSend}>
+                SEND MESSAGE <span className="cyan">▶</span>
+              </button>
+            ) : (
+              <div className="contact-sent">
+                <span className="cyan">✓</span> Opening your email client...
+              </div>
+            )}
+            <p className="cf-note">
+              Opens your default email client pre-filled. For a backend form,
+              integrate
+              <a
+                href="https://resend.com"
+                target="_blank"
+                rel="noreferrer"
+                className="cyan"
+              >
+                {" "}
+                Resend
+              </a>{" "}
+              or
+              <a
+                href="https://formspree.io"
+                target="_blank"
+                rel="noreferrer"
+                className="cyan"
+              >
+                {" "}
+                Formspree
+              </a>
+              .
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -1447,6 +1616,12 @@ export default function Portfolio() {
   const [flicker, setFlicker] = useState(false);
   const [effects, setEffects] = useState(true);
 
+  // Parallax offset for glass orbs
+  const parallaxOffset = useParallaxOrbs(0.18);
+
+  // Scroll jitter for coord HUD
+  const scrollJitter = useScrollJitter();
+
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
       if (e.key === "`") setTerminal((t) => !t);
@@ -1469,7 +1644,7 @@ export default function Portfolio() {
     <div className={`root${flicker && effects ? " global-flicker" : ""}`}>
       <style>{CSS}</style>
       <div className="grid-overlay" />
-      <GlassBackground enabled={effects} />
+      <GlassBackground enabled={effects} scrollOffset={parallaxOffset} />
       {!loaded && <Loader onDone={() => setLoaded(true)} />}
       {terminal && <Terminal onClose={() => setTerminal(false)} />}
       <div className={`site-body${loaded ? " site-visible" : " site-hidden"}`}>
@@ -1478,7 +1653,11 @@ export default function Portfolio() {
           effects={effects}
           onEffects={setEffects}
         />
-        <Hero onTerminal={() => setTerminal(true)} effects={effects} />
+        <Hero
+          onTerminal={() => setTerminal(true)}
+          effects={effects}
+          scrollJitter={scrollJitter}
+        />
         <About />
         <Skills />
         <Projects />
@@ -1513,11 +1692,9 @@ const CSS = `
     --body:      'Inter', sans-serif;
   }
 
-  /* ── BASE ── */
   .root { background:var(--bg); color:var(--text); font-family:var(--body); font-size:16px; min-height:100vh; overflow-x:hidden; position:relative; }
   .cyan { color:var(--cyan); }
 
-  /* ── GRID OVERLAY ── */
   .grid-overlay {
     position:fixed; inset:0; z-index:0; pointer-events:none;
     background-image:
@@ -1526,42 +1703,101 @@ const CSS = `
     background-size:10px 10px;
   }
 
-  /* ── GLASS BACKGROUND ORBS ── */
-  .glass-bg {
-    position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;
-  }
+  /* ── GLASS ORBS ── */
+  .glass-bg { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
   .glass-orb {
     position:absolute; border-radius:50%;
     background: radial-gradient(circle at 35% 35%,
-      rgba(0,229,255,0.07) 0%,
-      rgba(0,180,220,0.04) 40%,
-      rgba(0,229,255,0.01) 70%,
-      transparent 100%);
+      rgba(0,229,255,0.07) 0%, rgba(0,180,220,0.04) 40%,
+      rgba(0,229,255,0.01) 70%, transparent 100%);
     border:1px solid rgba(0,229,255,0.06);
-    backdrop-filter:blur(2px);
-    -webkit-backdrop-filter:blur(2px);
+    backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
     animation:orbDrift linear infinite;
     will-change:transform;
   }
   @keyframes orbDrift {
-    0%   { transform:translateY(0px) rotate(0deg)   scale(1);    }
-    33%  { transform:translateY(-18px) rotate(4deg) scale(1.03); }
-    66%  { transform:translateY(10px) rotate(-3deg) scale(0.97); }
-    100% { transform:translateY(0px) rotate(0deg)   scale(1);    }
+    0%   { transform:translateY(0px)   rotate(0deg)  scale(1);    }
+    33%  { transform:translateY(-18px) rotate(4deg)  scale(1.03); }
+    66%  { transform:translateY(10px)  rotate(-3deg) scale(0.97); }
+    100% { transform:translateY(0px)   rotate(0deg)  scale(1);    }
   }
+  /* Note: inline transform from parallax is additive via CSS var trick — orbs
+     use inline style transform, orbDrift keyframes are overridden by inline.
+     To combine both, we nest: the inline transform handles parallax offset,
+     and the drift is handled via a child pseudo-element on glass-orb.
+     Simplest approach that avoids JS animation: use translate3d in inline
+     and let the CSS @keyframes be the drift. Both apply via separate props
+     since we only set translateY in JS — the CSS animation adds rotation/scale. */
 
   /* ── FLICKER ── */
   .global-flicker { animation:flicker 50ms linear; will-change:transform; }
   @keyframes flicker {
-    0%  { filter:brightness(1.8) contrast(1.3) saturate(2); transform:translate(2px,-1px); }
-    33% { filter:brightness(0.4);                            transform:translate(-2px,1px); }
-    66% { filter:brightness(1.4) hue-rotate(15deg);          transform:translate(1px,2px);  }
-    100%{ filter:none;                                        transform:none;                }
+    0%   { filter:brightness(1.8) contrast(1.3) saturate(2); transform:translate(2px,-1px); }
+    33%  { filter:brightness(0.4);                            transform:translate(-2px,1px); }
+    66%  { filter:brightness(1.4) hue-rotate(15deg);          transform:translate(1px,2px);  }
+    100% { filter:none;                                        transform:none;                }
   }
 
   .site-hidden  { opacity:0; pointer-events:none; }
   .site-visible { animation:siteIn .6s ease forwards; }
   @keyframes siteIn { from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;} }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCROLL REVEAL
+     Sections start invisible. .is-visible (added by the
+     IntersectionObserver) triggers the 'system boot' sequence:
+     1. The section fades/translates in over 0.6s
+     2. .reveal-title arrives 0ms after
+     3. .reveal-content arrives 160ms later (staggered)
+     Timing uses a sharp cubic-bezier, not a bounce.
+  ═══════════════════════════════════════════════════════════ */
+  .reveal-section {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity  0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal-section.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Title boots first */
+  .reveal-title {
+    opacity: 0;
+    transform: translateX(-12px);
+    transition:
+      opacity  0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.05s,
+      transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.05s;
+  }
+  .is-visible .reveal-title {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Content arrives slightly after */
+  .reveal-content {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity  0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.18s,
+      transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.18s;
+  }
+  .is-visible .reveal-content {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── COORD JITTER ── */
+  .coord-jitter {
+    color: var(--cyan);
+    animation: coordScan 0.06s steps(1) infinite;
+  }
+  @keyframes coordScan {
+    0%  { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
 
   /* ── LOADER ── */
   .loader-overlay {
@@ -1581,7 +1817,6 @@ const CSS = `
   .loader-overlay.shutter-active .shutter-top    { transform:translateY(0); }
   .loader-overlay.shutter-active .shutter-bottom { transform:translateY(0); }
 
-  /* Skip button */
   .loader-skip {
     position:absolute; bottom:28px; right:28px; z-index:12;
     background:none; border:1px solid rgba(0,229,255,.3);
@@ -1616,7 +1851,7 @@ const CSS = `
   .loader-seg { flex:1; height:5px; background:rgba(255,255,255,.05); transition:background .1s; will-change:transform; }
   .loader-seg.filled    { background:var(--cyan-dim); }
   .loader-seg.active-seg{ background:var(--cyan); box-shadow:0 0 7px var(--cyan); animation:segPulse .4s ease infinite alternate; }
-  .loader-seg.stall-seg { background:var(--red); box-shadow:0 0 7px var(--red);  animation:segPulse .25s ease infinite alternate; }
+  .loader-seg.stall-seg { background:var(--red);  box-shadow:0 0 7px var(--red);  animation:segPulse .25s ease infinite alternate; }
   @keyframes segPulse { from{opacity:.6;}to{opacity:1;} }
   .loader-pct    { font-family:var(--display); font-size:.72rem; color:var(--cyan); width:3.5ch; text-align:right; flex-shrink:0; }
   .loader-status { font-family:var(--mono); font-size:.68rem; color:var(--text-dim); letter-spacing:.1em; }
@@ -1629,17 +1864,9 @@ const CSS = `
   /* ── EFFECTS TOGGLE ── */
   .fx-toggle { display:flex; align-items:center; gap:.5rem; }
   .fx-label  { font-family:var(--mono); font-size:.68rem; color:var(--text-dim); letter-spacing:.12em; }
-  .fx-switch {
-    position:relative; width:36px; height:18px; border-radius:9px;
-    background:var(--cyan); border:none; cursor:pointer;
-    transition:background .25s; flex-shrink:0;
-  }
+  .fx-switch { position:relative; width:36px; height:18px; border-radius:9px; background:var(--cyan); border:none; cursor:pointer; transition:background .25s; flex-shrink:0; }
   .fx-switch.fx-off { background:rgba(255,255,255,.12); }
-  .fx-knob {
-    position:absolute; top:2px; left:2px; width:14px; height:14px;
-    border-radius:50%; background:#fff;
-    transition:transform .25s; display:block;
-  }
+  .fx-knob { position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:transform .25s; display:block; }
   .fx-switch:not(.fx-off) .fx-knob { transform:translateX(18px); }
 
   /* ── NAV ── */
@@ -1658,9 +1885,9 @@ const CSS = `
   .scanline  { position:absolute; top:-100%; left:0; right:0; height:40px; background:linear-gradient(transparent,rgba(0,229,255,.04),transparent); animation:scan 7s linear infinite; pointer-events:none; z-index:2; will-change:transform; }
   @keyframes scan { to{top:110%;} }
   .hero-grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(0,229,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.05) 1px,transparent 1px); background-size:60px 60px; mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent); z-index:0; }
-  .hero-content  { position:relative; z-index:3; text-align:center; padding:2rem; }
-  .hero-eyebrow  { font-family:var(--mono); font-size:.8rem; color:var(--cyan); letter-spacing:.18em; margin-bottom:1.4rem; min-height:1.2em; }
-  .cursor-blink  { animation:blink .7s step-end infinite; }
+  .hero-content { position:relative; z-index:3; text-align:center; padding:2rem; }
+  .hero-eyebrow { font-family:var(--mono); font-size:.8rem; color:var(--cyan); letter-spacing:.18em; margin-bottom:1.4rem; min-height:1.2em; }
+  .cursor-blink { animation:blink .7s step-end infinite; }
   @keyframes blink { 50%{opacity:0;} }
   .hero-name     { font-family:var(--display); font-size:clamp(4rem,12vw,9rem); font-weight:900; letter-spacing:.05em; color:#fff; margin-bottom:.8rem; }
   .hero-role     { font-family:var(--mono); font-size:clamp(.8rem,2vw,1rem); color:var(--text-dim); letter-spacing:.07em; margin-bottom:.5rem; }
@@ -1669,11 +1896,11 @@ const CSS = `
   .hero-actions  { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
 
   /* HUD Corners */
-  .hud-corner  { position:absolute; z-index:4; font-family:var(--mono); padding:.5rem .8rem; border:1px solid var(--border); background:rgba(5,8,10,.7); backdrop-filter:blur(4px); }
-  .hud-tl  { top:80px; left:20px; }
-  .hud-tr  { top:80px; right:20px; text-align:right; }
-  .hud-bl  { bottom:40px; left:20px; }
-  .hud-br  { bottom:40px; right:20px; text-align:right; }
+  .hud-corner { position:absolute; z-index:4; font-family:var(--mono); padding:.5rem .8rem; border:1px solid var(--border); background:rgba(5,8,10,.7); backdrop-filter:blur(4px); }
+  .hud-tl { top:80px; left:20px; }
+  .hud-tr { top:80px; right:20px; text-align:right; }
+  .hud-bl { bottom:40px; left:20px; }
+  .hud-br { bottom:40px; right:20px; text-align:right; }
   .hud-label  { font-size:.6rem; color:var(--text-dim); letter-spacing:.16em; margin-bottom:.25rem; }
   .hud-val    { font-size:.76rem; color:var(--text); }
   .hud-subval { font-size:.64rem; color:var(--text-dim); letter-spacing:.08em; margin-top:.1rem; }
@@ -1715,66 +1942,44 @@ const CSS = `
   .about-badge { display:flex; align-items:center; gap:.6rem; font-family:var(--mono); font-size:.72rem; color:var(--text-dim); padding-top:.5rem; border-top:1px solid var(--border); }
   .badge-dot { width:8px; height:8px; border-radius:50%; background:#00ff87; box-shadow:0 0 8px #00ff87; animation:pulse 2s ease-in-out infinite; flex-shrink:0; }
   @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:.4;} }
+  .skills-hint { font-family:var(--mono); font-size:.72rem; color:var(--text-dim); margin-bottom:2rem; letter-spacing:.1em; }
 
-/* ── RADAR SKILLS HUD ── */
+  /* ── RADAR SKILLS ── */
   .radar-backdrop {
     position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
     opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:90;
   }
   .radar-backdrop.active { opacity:1; pointer-events:auto; }
-
-  .radar-module-container {
-    position:relative; z-index:91; width:fit-content; margin:0 auto;
-    transition:transform .6s cubic-bezier(0.16, 1, 0.3, 1);
-  }
+  .radar-module-container { position:relative; z-index:91; width:fit-content; margin:0 auto; transition:transform .6s cubic-bezier(0.16,1,0.3,1); }
   .radar-module-container.is-active { transform:scale(1.02); }
-
   .radar-card {
-    background:rgba(5, 10, 15, 0.95); border:1px solid var(--border);
+    background:rgba(5,10,15,0.95); border:1px solid var(--border);
     padding:1.5rem; border-radius:4px; box-shadow:0 10px 40px rgba(0,0,0,0.5);
     display:flex; flex-direction:column; gap:1.2rem;
-    max-width:360px; transition:all .6s cubic-bezier(0.16, 1, 0.3, 1);
-    overflow:hidden;
+    max-width:360px; transition:all .6s cubic-bezier(0.16,1,0.3,1); overflow:hidden;
   }
   .is-active .radar-card { max-width:850px; border-color:var(--cyan); box-shadow:0 0 30px var(--cyan-glow); }
-
   .radar-layout { display:flex; align-items:center; gap:2.5rem; }
-  @media(max-width:800px){ .radar-layout { flex-direction:column; } .is-active .radar-card { max-width:95vw; } }
-
+  @media(max-width:800px){ .radar-layout{flex-direction:column;} .is-active .radar-card{max-width:95vw;} }
   .radar-svg-wrap { flex-shrink:0; position:relative; }
   .radar-ring { fill:none; stroke:var(--cyan); stroke-width:0.5; }
   .radar-axis { stroke:var(--border); stroke-width:0.5; stroke-dasharray:2,4; }
   .radar-poly-main { fill:rgba(0,229,255,0.12); stroke:var(--cyan); stroke-width:1.5; }
   .radar-vertex { fill:var(--cyan); filter:drop-shadow(0 0 3px var(--cyan)); }
-
-  /* Sweep Animation */
-  .radar-sweep-group { transform-origin: 160px 160px; animation: radar-sweep 4s linear infinite; }
+  .radar-sweep-group { transform-origin:160px 160px; animation:radar-sweep 4s linear infinite; }
   .radar-sweep-line { stroke:var(--cyan); stroke-width:1.5; opacity:0.5; }
-  @keyframes radar-sweep { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
-
-  .radar-data-panel {
-    flex:1; display:flex; flex-direction:column; gap:1.2rem;
-    opacity:0; transform:translateX(20px); transition:all .5s ease;
-    min-width:300px; visibility:hidden; height:0;
-  }
+  @keyframes radar-sweep { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
+  .radar-data-panel { flex:1; display:flex; flex-direction:column; gap:1.2rem; opacity:0; transform:translateX(20px); transition:all .5s ease; min-width:300px; visibility:hidden; height:0; }
   .is-active .radar-data-panel { opacity:1; transform:translateX(0); visibility:visible; height:auto; }
-
   .radar-data-row { font-family:var(--mono); }
   .data-header { display:flex; justify-content:space-between; margin-bottom:.4rem; }
   .data-label  { font-size:.75rem; color:#fff; text-transform:uppercase; letter-spacing:.05em; }
   .data-pct    { font-size:.75rem; color:var(--cyan); }
-  .data-bar-bg { width:100%; height:3px; background:rgba(255,255,255,0.05); margin-bottom:.5rem; position:relative; }
-  .data-bar-fill { height:100%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); transition:width 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
+  .data-bar-bg { width:100%; height:3px; background:rgba(255,255,255,0.05); margin-bottom:.5rem; }
+  .data-bar-fill { height:100%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); transition:width 1.2s cubic-bezier(0.16,1,0.3,1); }
   .data-items  { font-size:.65rem; color:var(--text-dim); line-height:1.4; }
-
-  .radar-card-header, .radar-card-footer {
-    display:flex; justify-content:space-between; font-family:var(--mono);
-    font-size:.6rem; color:var(--text-dim); letter-spacing:.1em;
-  }
-  .blink-dot {
-    display:inline-block; width:6px; height:6px; background:var(--cyan);
-    border-radius:50%; margin-right:6px; animation:blink 1.2s step-end infinite;
-  }
+  .radar-card-header,.radar-card-footer { display:flex; justify-content:space-between; font-family:var(--mono); font-size:.6rem; color:var(--text-dim); letter-spacing:.1em; }
+  .blink-dot { display:inline-block; width:6px; height:6px; background:var(--cyan); border-radius:50%; margin-right:6px; animation:blink 1.2s step-end infinite; }
 
   /* ── PROJECTS ── */
   .projects-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1.5rem; }
@@ -1792,10 +1997,50 @@ const CSS = `
   .project-tags   { display:flex; flex-wrap:wrap; gap:.4rem; }
   .project-tag    { font-family:var(--mono); font-size:.64rem; color:var(--cyan-dim); background:rgba(0,229,255,.07); padding:.18rem .5rem; }
 
-  /* ── EXPERIENCE ── */
+  /* ── EXPERIENCE TIMELINE ── */
+  .exp-timeline {
+    position: relative;
+    padding-left: 28px; /* space for the data line */
+  }
+
+  /*
+    The vertical data line — starts at height 0, grows to 100% when
+    .is-visible is added to the parent .reveal-section.
+    We target it via the section ancestor having .is-visible.
+  */
+  .exp-data-line {
+    position: absolute;
+    left: 0; top: 0;
+    width: 1px;
+    height: 0;
+    background: linear-gradient(to bottom, var(--cyan), rgba(0,229,255,0.1));
+    box-shadow: 0 0 6px var(--cyan);
+    transition: height 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+  }
+  /* When the section becomes visible, grow the line */
+  .is-visible .exp-data-line { height: 100%; }
+
   .exp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1.5rem; }
-  .exp-card { border:1px solid var(--border); padding:1.8rem; background:rgba(0,229,255,.015); transition:border-color .2s,box-shadow .2s; }
+  .exp-card {
+    position: relative;
+    border:1px solid var(--border); padding:1.8rem;
+    background:rgba(0,229,255,.015); transition:border-color .2s,box-shadow .2s;
+  }
   .exp-card:hover { border-color:var(--cyan-dim); box-shadow:0 0 20px var(--cyan-glow); }
+
+  /* Dot on the data line per card */
+  .exp-node {
+    position: absolute;
+    left: -33px; top: 1.8rem;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    opacity: 0;
+    transition: opacity 0.4s ease 0.8s;
+  }
+  .is-visible .exp-node { opacity: 1; }
+
   .exp-tag    { font-family:var(--display); font-size:.64rem; letter-spacing:.14em; color:var(--cyan); border:1px solid var(--cyan); display:inline-block; padding:.14rem .48rem; margin-bottom:.9rem; }
   .exp-title  { font-family:var(--display); font-size:.9rem; color:#fff; letter-spacing:.04em; margin-bottom:.35rem; }
   .exp-place  { font-family:var(--mono); font-size:.72rem; color:var(--cyan-dim); margin-bottom:.25rem; }
@@ -1808,7 +2053,6 @@ const CSS = `
   .contact-links { display:flex; flex-direction:column; gap:1rem; align-items:center; margin-bottom:2.5rem; }
   .contact-link  { font-family:var(--mono); font-size:.88rem; color:var(--text); text-decoration:none; display:flex; align-items:center; gap:.8rem; transition:color .2s; }
   .contact-link:hover { color:var(--cyan); }
-  /* Contact form */
   .contact-form  { display:flex; flex-direction:column; gap:.9rem; text-align:left; }
   .cf-row        { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; }
   @media(max-width:600px){.cf-row{grid-template-columns:1fr;}}
