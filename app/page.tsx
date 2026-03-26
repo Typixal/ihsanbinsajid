@@ -85,7 +85,7 @@ const PROJECTS: ProjectDef[] = [
     id: "02",
     title: "Katana MoCap System",
     period: "2025 – Present",
-    desc: "DIY motion capture system in development. Hardware-first full-body tracking without commercial sensor arrays.",
+    desc: "DIY motion capture system in development. Hardware-first weapon tracking without commercial sensor arrays.",
     tags: ["Hardware", "Embedded", "Python", "Sensors"],
     status: "IN DEV",
   },
@@ -180,23 +180,38 @@ const GlassBackground: FC<{ enabled: boolean }> = ({ enabled }) => {
 //  HEX STREAM — Memory Dump sidebar
 // ─────────────────────────────────────────────────────────────
 const HexStream: FC = () => {
-  const [lines, setLines] = useState<string[]>(() =>
-    Array.from(
+  // Start with an empty array so the Server and Client match initially
+  const [lines, setLines] = useState<string[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+
+    // Initialize the first 30 lines ONLY on the client
+    const initialLines = Array.from(
       { length: 30 },
       () => `0x${randHex(4)}: ${randHex(8)} ${randHex(8)} ${randHex(8)}`,
-    ),
-  );
-  useEffect(() => {
+    );
+    setLines(initialLines);
+
     const id = setInterval(() => {
       setLines((l) => {
-        const n = [...l];
-        n.shift();
-        n.push(`0x${randHex(4)}: ${randHex(8)} ${randHex(8)} ${randHex(8)}`);
-        return n;
+        const next = [...l];
+        next.shift();
+        next.push(`0x${randHex(4)}: ${randHex(8)} ${randHex(8)} ${randHex(8)}`);
+        return next;
       });
     }, 60);
+
     return () => clearInterval(id);
   }, []);
+
+  // Return a matching empty div if not mounted yet
+  if (!mounted) {
+    return <div className="hex-stream" />;
+  }
+
   return (
     <div className="hex-stream">
       {lines.map((l, i) => (
@@ -599,7 +614,7 @@ const HudOverlays: FC<{ enabled: boolean }> = ({ enabled }) => {
       </div>
       <div className="hud-corner hud-br">
         <div className="hud-label">USER_ID</div>
-        <div className="hud-val cyan">IHSAN_B_SAJID</div>
+        <div className="hud-val cyan">IHSAN_BIN_SAJID</div>
         <div className="hud-subval">CLEARANCE: LVL-5</div>
       </div>
     </>
@@ -631,187 +646,190 @@ const EffectsToggle: FC<EffectsToggleProps> = ({ effects, onChange }) => (
 //  Single radar chart with hover-reveal skill pills around it.
 // ─────────────────────────────────────────────────────────────
 const RadarSkills: FC = () => {
-  const [hovered, setHovered] = useState(false);
-  const SIZE = 280; // SVG size
+  const [active, setActive] = useState(false);
+  const SIZE = 320;
   const CX = SIZE / 2;
   const CY = SIZE / 2;
-  const R = 110; // outer ring radius
+  const R = 110;
   const n = SKILLS.length;
   const levels = [0.2, 0.4, 0.6, 0.8, 1.0];
 
-  // Angle for each axis (start top, go clockwise)
   const angle = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
-
-  // Point on axis at fraction t
   const pt = (i: number, t: number) => ({
     x: CX + R * t * Math.cos(angle(i)),
     y: CY + R * t * Math.sin(angle(i)),
   });
 
-  // Radar fill polygon
   const poly = SKILLS.map((s, i) => {
-    const t = s.level / 10;
-    const p = pt(i, t);
+    const p = pt(i, s.level / 10);
     return `${p.x},${p.y}`;
   }).join(" ");
 
-  // Skill pill positions: slightly beyond the axis endpoint
-  const pillPositions = SKILLS.map((s, i) => {
-    const t = 1.28;
-    return pt(i, t);
-  });
-
   return (
-    <div
-      className="radar-wrap"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* SVG radar chart */}
-      <svg
-        className="radar-svg"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
-        width={SIZE}
-        height={SIZE}
+    <>
+      {/* BACKGROUND DIMMER */}
+      <div
+        className={`radar-backdrop ${active ? "active" : ""}`}
+        onClick={() => setActive(false)}
+      />
+
+      <div
+        className={`radar-module-container ${active ? "is-active" : ""}`}
+        onMouseEnter={() => setActive(true)}
+        onMouseLeave={() => setActive(false)}
       >
-        {/* Concentric rings */}
-        {levels.map((l, li) => (
-          <polygon
-            key={li}
-            points={SKILLS.map((_, i) => {
-              const p = pt(i, l);
-              return `${p.x},${p.y}`;
-            }).join(" ")}
-            fill="none"
-            stroke={`rgba(0,229,255,${0.06 + li * 0.04})`}
-            strokeWidth="0.8"
-          />
-        ))}
-        {/* Axis lines */}
-        {SKILLS.map((_, i) => {
-          const end = pt(i, 1);
-          return (
-            <line
-              key={i}
-              x1={CX}
-              y1={CY}
-              x2={end.x}
-              y2={end.y}
-              stroke="rgba(0,229,255,0.15)"
-              strokeWidth="0.8"
-              strokeDasharray="3,3"
-            />
-          );
-        })}
-        {/* Filled polygon */}
-        <polygon
-          points={poly}
-          fill="rgba(0,229,255,0.12)"
-          stroke="var(--cyan)"
-          strokeWidth="1.5"
-        />
-        {/* Vertex dots */}
-        {SKILLS.map((s, i) => {
-          const t = s.level / 10;
-          const p = pt(i, t);
-          return (
-            <circle
-              key={i}
-              cx={p.x}
-              cy={p.y}
-              r="3.5"
-              fill="var(--cyan)"
-              opacity="0.9"
-            />
-          );
-        })}
-        {/* Category labels on axes */}
-        {SKILLS.map((s, i) => {
-          const p = pt(i, 1.18);
-          const textAnchor =
-            Math.abs(Math.cos(angle(i))) < 0.1
-              ? "middle"
-              : Math.cos(angle(i)) > 0
-                ? "start"
-                : "end";
-          return (
-            <text
-              key={i}
-              x={p.x}
-              y={p.y}
-              textAnchor={textAnchor}
-              dominantBaseline="central"
-              fill="var(--cyan)"
-              fontSize="8.5"
-              fontFamily="'JetBrains Mono',monospace"
-              letterSpacing="0.08em"
-              opacity="0.85"
-            >
-              {s.cat}
-            </text>
-          );
-        })}
-        {/* Center dot */}
-        <circle cx={CX} cy={CY} r="4" fill="var(--cyan)" opacity="0.7" />
-        {/* Hover hint when not hovered */}
-        {!hovered && (
-          <text
-            x={CX}
-            y={CY + 22}
-            textAnchor="middle"
-            fill="rgba(0,229,255,0.4)"
-            fontSize="7"
-            fontFamily="'JetBrains Mono',monospace"
-          >
-            HOVER TO EXPAND
-          </text>
-        )}
-      </svg>
-
-      {/* Skill pills — fade in on hover, positioned around the radar */}
-      <div className={`radar-pills${hovered ? " radar-pills-visible" : ""}`}>
-        {SKILLS.map((s, i) => {
-          const pos = pillPositions[i];
-          // Translate from SVG coordinate space to % offset from center
-          const ox = pos.x - CX;
-          const oy = pos.y - CY;
-          return (
-            <div
-              key={i}
-              className="radar-pill-group"
-              style={{
-                transform: `translate(${ox}px, ${oy}px)`,
-              }}
-            >
-              <div className="radar-pill-label">{s.cat}</div>
-              <div className="radar-pill-items">
-                {s.items.map((item) => (
-                  <span key={item} className="radar-pill">
-                    {item}
-                  </span>
-                ))}
-              </div>
+        <div className="radar-card">
+          {/* CARD HUD HEADER */}
+          <div className="radar-card-header">
+            <div className="status-tag">
+              <span className="blink-dot" /> SYSTEM_SCAN:{" "}
+              {active ? "EXPANDED" : "IDLE"}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Level indicator */}
-      <div className="radar-legend">
-        {SKILLS.map((s, i) => (
-          <div key={i} className="radar-legend-row">
-            <span className="radar-legend-cat">{s.cat}</span>
-            <div className="radar-legend-bar">
-              <div
-                className="radar-legend-fill"
-                style={{ width: `${s.level * 10}%` }}
-              />
-            </div>
-            <span className="radar-legend-num">{s.level}/10</span>
+            <div className="serial-no">SKL_MTX_PRTCL_V4</div>
           </div>
-        ))}
+
+          <div className="radar-layout">
+            {/* LEFT: THE SVG RADAR */}
+            <div className="radar-svg-wrap">
+              <svg
+                className="radar-svg"
+                viewBox={`0 0 ${SIZE} ${SIZE}`}
+                width={SIZE}
+                height={SIZE}
+              >
+                <defs>
+                  <radialGradient id="radar-glow" cx="50%" cy="50%" r="50%">
+                    <stop
+                      offset="0%"
+                      stopColor="var(--cyan)"
+                      stopOpacity="0.15"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--cyan)"
+                      stopOpacity="0"
+                    />
+                  </radialGradient>
+                </defs>
+
+                <circle cx={CX} cy={CY} r={R} fill="url(#radar-glow)" />
+
+                {/* CONCENTRIC RINGS */}
+                {levels.map((l, li) => (
+                  <polygon
+                    key={li}
+                    points={SKILLS.map((_, i) => {
+                      const p = pt(i, l);
+                      return `${p.x},${p.y}`;
+                    }).join(" ")}
+                    className="radar-ring"
+                    strokeOpacity={0.1 + li * 0.1}
+                  />
+                ))}
+
+                {/* AXIS LINES */}
+                {SKILLS.map((_, i) => {
+                  const end = pt(i, 1);
+                  return (
+                    <line
+                      key={i}
+                      x1={CX}
+                      y1={CY}
+                      x2={end.x}
+                      y2={end.y}
+                      className="radar-axis"
+                    />
+                  );
+                })}
+
+                {/* SCANNING SWEEP */}
+                {active && (
+                  <g className="radar-sweep-group">
+                    <line
+                      x1={CX}
+                      y1={CY}
+                      x2={CX}
+                      y2={CY - R}
+                      className="radar-sweep-line"
+                    />
+                    <path
+                      d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 1 ${CX + R * Math.sin(Math.PI / 4)} ${CY - R * Math.cos(Math.PI / 4)} L ${CX} ${CY} Z`}
+                      fill="url(#radar-sweep-grad)"
+                      className="radar-sweep-area"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="radar-sweep-grad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="var(--cyan)"
+                          stopOpacity="0.3"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--cyan)"
+                          stopOpacity="0"
+                        />
+                      </linearGradient>
+                    </defs>
+                  </g>
+                )}
+
+                {/* FILLED POLYGON */}
+                <polygon points={poly} className="radar-poly-main" />
+
+                {/* VERTICES */}
+                {SKILLS.map((s, i) => {
+                  const p = pt(i, s.level / 10);
+                  return (
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r="3"
+                      className="radar-vertex"
+                    />
+                  );
+                })}
+              </svg>
+            </div>
+
+            {/* RIGHT: DATA READOUT PANEL */}
+            <div className="radar-data-panel">
+              {SKILLS.map((s, i) => (
+                <div
+                  key={i}
+                  className="radar-data-row"
+                  style={{ transitionDelay: `${i * 50}ms` }}
+                >
+                  <div className="data-header">
+                    <span className="data-label">{s.cat}</span>
+                    <span className="data-pct">{s.level * 10}%</span>
+                  </div>
+                  <div className="data-bar-bg">
+                    <div
+                      className="data-bar-fill"
+                      style={{ width: active ? `${s.level * 10}%` : "0%" }}
+                    />
+                  </div>
+                  <div className="data-items">{s.items.join(" • ")}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="radar-card-footer">
+            OPERATOR: IHSAN_BIN_SAJID // DATA_STREAM:{" "}
+            {active ? "STABLE" : "STANDBY"}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -1698,47 +1716,65 @@ const CSS = `
   .badge-dot { width:8px; height:8px; border-radius:50%; background:#00ff87; box-shadow:0 0 8px #00ff87; animation:pulse 2s ease-in-out infinite; flex-shrink:0; }
   @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:.4;} }
 
-  /* ── RADAR SKILLS ── */
-  .skills-hint { font-family:var(--mono); font-size:.72rem; color:var(--text-dim); margin-bottom:2rem; letter-spacing:.1em; }
-  .radar-wrap {
-    position:relative; display:flex; flex-wrap:wrap;
-    gap:3rem; align-items:flex-start; justify-content:center;
+/* ── RADAR SKILLS HUD ── */
+  .radar-backdrop {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
+    opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:90;
   }
-  .radar-svg { display:block; flex-shrink:0; overflow:visible; }
-  /* Pill overlay — absolutely centered on SVG */
-  .radar-pills {
-    position:absolute;
-    top:50%; left:50%;
-    /* pills are offset from center via inline transform */
-    pointer-events:none;
-    opacity:0; transition:opacity .35s ease;
+  .radar-backdrop.active { opacity:1; pointer-events:auto; }
+
+  .radar-module-container {
+    position:relative; z-index:91; width:fit-content; margin:0 auto;
+    transition:transform .6s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .radar-pills-visible { opacity:1; pointer-events:auto; }
-  .radar-pill-group {
-    position:absolute;
-    display:flex; flex-direction:column; align-items:center; gap:3px;
-    /* translate is set inline — centers pill group at (0,0) then offset */
-    transform-origin:center center;
+  .radar-module-container.is-active { transform:scale(1.02); }
+
+  .radar-card {
+    background:rgba(5, 10, 15, 0.95); border:1px solid var(--border);
+    padding:1.5rem; border-radius:4px; box-shadow:0 10px 40px rgba(0,0,0,0.5);
+    display:flex; flex-direction:column; gap:1.2rem;
+    max-width:360px; transition:all .6s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow:hidden;
   }
-  .radar-pill-label {
-    font-family:var(--display); font-size:.55rem; color:var(--cyan);
-    letter-spacing:.1em; white-space:nowrap; margin-bottom:2px;
+  .is-active .radar-card { max-width:850px; border-color:var(--cyan); box-shadow:0 0 30px var(--cyan-glow); }
+
+  .radar-layout { display:flex; align-items:center; gap:2.5rem; }
+  @media(max-width:800px){ .radar-layout { flex-direction:column; } .is-active .radar-card { max-width:95vw; } }
+
+  .radar-svg-wrap { flex-shrink:0; position:relative; }
+  .radar-ring { fill:none; stroke:var(--cyan); stroke-width:0.5; }
+  .radar-axis { stroke:var(--border); stroke-width:0.5; stroke-dasharray:2,4; }
+  .radar-poly-main { fill:rgba(0,229,255,0.12); stroke:var(--cyan); stroke-width:1.5; }
+  .radar-vertex { fill:var(--cyan); filter:drop-shadow(0 0 3px var(--cyan)); }
+
+  /* Sweep Animation */
+  .radar-sweep-group { transform-origin: 160px 160px; animation: radar-sweep 4s linear infinite; }
+  .radar-sweep-line { stroke:var(--cyan); stroke-width:1.5; opacity:0.5; }
+  @keyframes radar-sweep { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+
+  .radar-data-panel {
+    flex:1; display:flex; flex-direction:column; gap:1.2rem;
+    opacity:0; transform:translateX(20px); transition:all .5s ease;
+    min-width:300px; visibility:hidden; height:0;
   }
-  .radar-pill-items { display:flex; flex-wrap:wrap; gap:3px; justify-content:center; max-width:120px; }
-  .radar-pill {
-    font-family:var(--mono); font-size:.6rem; color:var(--text);
-    background:rgba(0,229,255,.08); border:1px solid rgba(0,229,255,.2);
-    padding:.15rem .4rem; white-space:nowrap;
-    transition:background .2s,border-color .2s;
+  .is-active .radar-data-panel { opacity:1; transform:translateX(0); visibility:visible; height:auto; }
+
+  .radar-data-row { font-family:var(--mono); }
+  .data-header { display:flex; justify-content:space-between; margin-bottom:.4rem; }
+  .data-label  { font-size:.75rem; color:#fff; text-transform:uppercase; letter-spacing:.05em; }
+  .data-pct    { font-size:.75rem; color:var(--cyan); }
+  .data-bar-bg { width:100%; height:3px; background:rgba(255,255,255,0.05); margin-bottom:.5rem; position:relative; }
+  .data-bar-fill { height:100%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); transition:width 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
+  .data-items  { font-size:.65rem; color:var(--text-dim); line-height:1.4; }
+
+  .radar-card-header, .radar-card-footer {
+    display:flex; justify-content:space-between; font-family:var(--mono);
+    font-size:.6rem; color:var(--text-dim); letter-spacing:.1em;
   }
-  .radar-pill:hover { background:rgba(0,229,255,.15); border-color:var(--cyan-dim); color:var(--cyan); }
-  /* Legend */
-  .radar-legend { display:flex; flex-direction:column; gap:.7rem; min-width:220px; justify-content:center; }
-  .radar-legend-row { display:flex; align-items:center; gap:.7rem; }
-  .radar-legend-cat { font-family:var(--mono); font-size:.72rem; color:var(--text-dim); width:80px; flex-shrink:0; letter-spacing:.06em; }
-  .radar-legend-bar { flex:1; height:5px; background:rgba(255,255,255,.06); border-radius:2px; overflow:hidden; }
-  .radar-legend-fill { height:100%; background:var(--cyan); border-radius:2px; transition:width .4s ease; }
-  .radar-legend-num  { font-family:var(--mono); font-size:.65rem; color:var(--cyan-dim); width:3ch; text-align:right; }
+  .blink-dot {
+    display:inline-block; width:6px; height:6px; background:var(--cyan);
+    border-radius:50%; margin-right:6px; animation:blink 1.2s step-end infinite;
+  }
 
   /* ── PROJECTS ── */
   .projects-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1.5rem; }
