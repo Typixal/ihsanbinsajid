@@ -1558,30 +1558,6 @@ const Contact: FC = () => {
                 <span className="cyan">✓</span> Opening your email client...
               </div>
             )}
-            <p className="cf-note">
-              Opens your default email client pre-filled. For a backend form,
-              integrate
-              <a
-                href="https://resend.com"
-                target="_blank"
-                rel="noreferrer"
-                className="cyan"
-              >
-                {" "}
-                Resend
-              </a>{" "}
-              or
-              <a
-                href="https://formspree.io"
-                target="_blank"
-                rel="noreferrer"
-                className="cyan"
-              >
-                {" "}
-                Formspree
-              </a>
-              .
-            </p>
           </div>
         </div>
       </div>
