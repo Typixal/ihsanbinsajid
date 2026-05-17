@@ -1,13 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  FC,
-  RefObject,
-} from "react";
+import { useState, useEffect, useRef, useCallback, FC, RefObject } from "react";
 
 // ─────────────────────────────────────────────────────────────
 //  TYPES
@@ -28,8 +21,8 @@ interface ProjectDef {
   desc: string;
   tags: string[];
   status: "ACTIVE" | "IN DEV" | "COMPLETE";
-  github?: string;   // full URL if public repo exists, omit if private/not yet pushed
-  demo?: string;     // optional live demo URL
+  github?: string; // full URL if public repo exists, omit if private/not yet pushed
+  demo?: string; // optional live demo URL
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -54,10 +47,26 @@ const LOAD_LINES: string[] = [
 
 const SKILLS: SkillDef[] = [
   { cat: "Languages", level: 9, items: ["Python", "Java", "C", "Bash", "SQL"] },
-  { cat: "Security",  level: 8, items: ["Nmap", "Burp Suite", "Wireshark", "Hashcat", "sqlmap"] },
-  { cat: "DevOps",    level: 7, items: ["Docker", "Git", "Linux", "Shell Scripting"] },
-  { cat: "AI / ML",   level: 6, items: ["OpenCV", "PyTorch", "TinyLlama", "Whisper"] },
-  { cat: "Embedded",  level: 9, items: ["ESP32/ESP8266", "Arduino", "Raspberry Pi", "I2C/SPI"] },
+  {
+    cat: "Security",
+    level: 8,
+    items: ["Nmap", "Burp Suite", "Wireshark", "Hashcat", "sqlmap"],
+  },
+  {
+    cat: "DevOps",
+    level: 7,
+    items: ["Docker", "Git", "Linux", "Shell Scripting"],
+  },
+  {
+    cat: "AI / ML",
+    level: 6,
+    items: ["OpenCV", "PyTorch", "TinyLlama", "Whisper"],
+  },
+  {
+    cat: "Embedded",
+    level: 9,
+    items: ["ESP32/ESP8266", "Arduino", "Raspberry Pi", "I2C/SPI"],
+  },
   { cat: "UI / Design", level: 6, items: ["PySide6", "Figma", "Unity", "UE5"] },
 ];
 
@@ -86,7 +95,7 @@ const PROJECTS: ProjectDef[] = [
     period: "Feb 2026 – May 2026",
     desc: "Custom desktop macro-pad application with a Battlefield 2042-inspired HUD UI. JSON-driven config system for macro binds, app launching, and live hardware status panels. PySide6 UI thread optimized for zero input lag during rapid macro execution.",
     tags: ["Python", "PySide6", "Qt Designer", "JSON"],
-    status: "COMPLETE",
+    status: "IN DEV",
     // No public repo yet
   },
   {
@@ -129,7 +138,9 @@ const STATUS_CLASS: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────
 function randHex(len = 8): string {
   return Array.from({ length: len }, () =>
-    Math.floor(Math.random() * 16).toString(16).toUpperCase()
+    Math.floor(Math.random() * 16)
+      .toString(16)
+      .toUpperCase(),
   ).join("");
 }
 
@@ -146,7 +157,7 @@ function jitterCoord(base: number, jitter: boolean): string {
 //  threshold: 0.12 means 12% of the element must be visible.
 // ─────────────────────────────────────────────────────────────
 function useScrollReveal<T extends HTMLElement>(
-  threshold = 0.12
+  threshold = 0.12,
 ): RefObject<T | null> {
   const ref = useRef<T | null>(null);
 
@@ -164,7 +175,7 @@ function useScrollReveal<T extends HTMLElement>(
           }
         });
       },
-      { threshold }
+      { threshold },
     );
 
     observer.observe(el);
@@ -230,12 +241,40 @@ function useScrollJitter(): boolean {
 //  GLASS ORBS BACKGROUND  — parallax-linked
 // ─────────────────────────────────────────────────────────────
 const ORBS = [
-  { size: 340, top: "8%",  left: "12%", delay: "0s",   dur: "18s", pSpeed: 0.12 },
-  { size: 260, top: "55%", left: "70%", delay: "-6s",  dur: "22s", pSpeed: 0.20 },
-  { size: 200, top: "75%", left: "20%", delay: "-3s",  dur: "16s", pSpeed: 0.08 },
-  { size: 180, top: "20%", left: "60%", delay: "-10s", dur: "20s", pSpeed: 0.16 },
-  { size: 140, top: "45%", left: "40%", delay: "-8s",  dur: "14s", pSpeed: 0.24 },
-  { size: 120, top: "10%", left: "85%", delay: "-14s", dur: "25s", pSpeed: 0.10 },
+  { size: 340, top: "8%", left: "12%", delay: "0s", dur: "18s", pSpeed: 0.12 },
+  { size: 260, top: "55%", left: "70%", delay: "-6s", dur: "22s", pSpeed: 0.2 },
+  {
+    size: 200,
+    top: "75%",
+    left: "20%",
+    delay: "-3s",
+    dur: "16s",
+    pSpeed: 0.08,
+  },
+  {
+    size: 180,
+    top: "20%",
+    left: "60%",
+    delay: "-10s",
+    dur: "20s",
+    pSpeed: 0.16,
+  },
+  {
+    size: 140,
+    top: "45%",
+    left: "40%",
+    delay: "-8s",
+    dur: "14s",
+    pSpeed: 0.24,
+  },
+  {
+    size: 120,
+    top: "10%",
+    left: "85%",
+    delay: "-14s",
+    dur: "25s",
+    pSpeed: 0.1,
+  },
 ];
 
 const GlassBackground: FC<{ enabled: boolean; scrollOffset: number }> = ({
@@ -250,11 +289,11 @@ const GlassBackground: FC<{ enabled: boolean; scrollOffset: number }> = ({
           key={i}
           className="glass-orb"
           style={{
-            width:  o.size,
+            width: o.size,
             height: o.size,
-            top:    o.top,
-            left:   o.left,
-            animationDelay:    o.delay,
+            top: o.top,
+            left: o.left,
+            animationDelay: o.delay,
             animationDuration: o.dur,
             // Each orb moves at its own speed, creating depth layering
             transform: `translateY(${scrollOffset * o.pSpeed}px)`,
@@ -274,8 +313,9 @@ const HexStream: FC = () => {
 
   useEffect(() => {
     setMounted(true);
-    const initialLines = Array.from({ length: 30 }, () =>
-      `0x${randHex(4)}: ${randHex(8)} ${randHex(8)} ${randHex(8)}`
+    const initialLines = Array.from(
+      { length: 30 },
+      () => `0x${randHex(4)}: ${randHex(8)} ${randHex(8)} ${randHex(8)}`,
     );
     setLines(initialLines);
     const id = setInterval(() => {
@@ -294,7 +334,9 @@ const HexStream: FC = () => {
   return (
     <div className="hex-stream">
       {lines.map((l, i) => (
-        <div key={i} className="hex-line">{l}</div>
+        <div key={i} className="hex-line">
+          {l}
+        </div>
       ))}
     </div>
   );
@@ -307,16 +349,38 @@ const WorldMap: FC = () => {
   const kx = ((76.27 + 180) / 360) * 800;
   const ky = ((90 - 10.85) / 180) * 400;
   return (
-    <svg className="world-map-svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice">
+    <svg
+      className="world-map-svg"
+      viewBox="0 0 800 400"
+      preserveAspectRatio="xMidYMid slice"
+    >
       {Array.from({ length: 13 }).map((_, i) => (
-        <line key={`v${i}`} x1={i * (800 / 12)} y1="0" x2={i * (800 / 12)} y2="400"
-          stroke="rgba(0,229,255,0.07)" strokeWidth="0.5" />
+        <line
+          key={`v${i}`}
+          x1={i * (800 / 12)}
+          y1="0"
+          x2={i * (800 / 12)}
+          y2="400"
+          stroke="rgba(0,229,255,0.07)"
+          strokeWidth="0.5"
+        />
       ))}
       {Array.from({ length: 7 }).map((_, i) => (
-        <line key={`h${i}`} x1="0" y1={i * (400 / 6)} x2="800" y2={i * (400 / 6)}
-          stroke="rgba(0,229,255,0.07)" strokeWidth="0.5" />
+        <line
+          key={`h${i}`}
+          x1="0"
+          y1={i * (400 / 6)}
+          x2="800"
+          y2={i * (400 / 6)}
+          stroke="rgba(0,229,255,0.07)"
+          strokeWidth="0.5"
+        />
       ))}
-      <g fill="rgba(0,229,255,0.06)" stroke="rgba(0,229,255,0.12)" strokeWidth="0.5">
+      <g
+        fill="rgba(0,229,255,0.06)"
+        stroke="rgba(0,229,255,0.12)"
+        strokeWidth="0.5"
+      >
         <path d="M80,60 L200,55 L215,80 L225,130 L210,170 L180,185 L140,200 L100,190 L75,160 L65,110 Z" />
         <path d="M155,210 L205,210 L215,255 L210,310 L185,345 L160,340 L145,300 L140,255 Z" />
         <path d="M355,50 L415,48 L430,70 L420,100 L390,110 L360,100 L345,80 Z" />
@@ -326,16 +390,62 @@ const WorldMap: FC = () => {
         <path d="M610,230 L690,225 L710,255 L705,290 L680,305 L640,300 L615,275 L605,250 Z" />
       </g>
       <circle cx={kx} cy={ky} r="3" fill="var(--cyan)" />
-      <circle cx={kx} cy={ky} r="3" fill="none" stroke="var(--cyan)" strokeWidth="1.5">
-        <animate attributeName="r" from="3" to="22" dur="2s" repeatCount="indefinite" />
-        <animate attributeName="opacity" from="1" to="0" dur="2s" repeatCount="indefinite" />
+      <circle
+        cx={kx}
+        cy={ky}
+        r="3"
+        fill="none"
+        stroke="var(--cyan)"
+        strokeWidth="1.5"
+      >
+        <animate
+          attributeName="r"
+          from="3"
+          to="22"
+          dur="2s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="opacity"
+          from="1"
+          to="0"
+          dur="2s"
+          repeatCount="indefinite"
+        />
       </circle>
-      <circle cx={kx} cy={ky} r="3" fill="none" stroke="var(--cyan)" strokeWidth="1">
-        <animate attributeName="r" from="3" to="16" dur="2s" begin="0.6s" repeatCount="indefinite" />
-        <animate attributeName="opacity" from="0.8" to="0" dur="2s" begin="0.6s" repeatCount="indefinite" />
+      <circle
+        cx={kx}
+        cy={ky}
+        r="3"
+        fill="none"
+        stroke="var(--cyan)"
+        strokeWidth="1"
+      >
+        <animate
+          attributeName="r"
+          from="3"
+          to="16"
+          dur="2s"
+          begin="0.6s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="opacity"
+          from="0.8"
+          to="0"
+          dur="2s"
+          begin="0.6s"
+          repeatCount="indefinite"
+        />
       </circle>
-      <text x={kx + 6} y={ky - 6} fill="var(--cyan)" fontSize="7"
-        fontFamily="'JetBrains Mono',monospace" opacity="0.9">
+      <text
+        x={kx + 6}
+        y={ky - 6}
+        fill="var(--cyan)"
+        fontSize="7"
+        fontFamily="'JetBrains Mono',monospace"
+        opacity="0.9"
+      >
         10.85N / 76.27E
       </text>
     </svg>
@@ -345,17 +455,19 @@ const WorldMap: FC = () => {
 // ─────────────────────────────────────────────────────────────
 //  LOADER
 // ─────────────────────────────────────────────────────────────
-interface LoaderProps { onDone: () => void; }
+interface LoaderProps {
+  onDone: () => void;
+}
 
 const Loader: FC<LoaderProps> = ({ onDone }) => {
-  const [progress,      setProgress]     = useState<number>(0);
-  const [lineIdx,       setLineIdx]       = useState<number>(0);
-  const [stalling,      setStalling]      = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
+  const [lineIdx, setLineIdx] = useState<number>(0);
+  const [stalling, setStalling] = useState<boolean>(false);
   const [stallingFlash, setStallingFlash] = useState<boolean>(false);
-  const [shutterOut,    setShutterOut]    = useState<boolean>(false);
+  const [shutterOut, setShutterOut] = useState<boolean>(false);
   const progressRef = useRef<number>(0);
   const stallingRef = useRef<boolean>(false);
-  const doneRef     = useRef<boolean>(false);
+  const doneRef = useRef<boolean>(false);
 
   const finish = useCallback(() => {
     if (doneRef.current) return;
@@ -365,7 +477,10 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
   }, [onDone]);
 
   useEffect(() => {
-    if (!stalling) { setStallingFlash(false); return; }
+    if (!stalling) {
+      setStallingFlash(false);
+      return;
+    }
     const id = setInterval(() => setStallingFlash((f) => !f), 200);
     return () => clearInterval(id);
   }, [stalling]);
@@ -376,9 +491,13 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
     const tick = (now: number) => {
       const dt = now - lastTime;
       lastTime = now;
-      if (stallingRef.current) { raf = requestAnimationFrame(tick); return; }
+      if (stallingRef.current) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       progressRef.current = Math.min(
-        progressRef.current + (Math.random() * 2.8 + 1) * (dt / 80), 100
+        progressRef.current + (Math.random() * 2.8 + 1) * (dt / 80),
+        100,
       );
       const p = progressRef.current;
       const stall = STALL_POINTS.find((sp) => p >= sp && p < sp + 4);
@@ -393,7 +512,10 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
       }
       setProgress(Math.floor(Math.min(p, 100)));
       setLineIdx(Math.floor((Math.min(p, 99) / 100) * LOAD_LINES.length));
-      if (p >= 100) { finish(); return; }
+      if (p >= 100) {
+        finish();
+        return;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -409,23 +531,37 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
       <div className="shutter-bottom" />
       <WorldMap />
       <div className="loader-scanlines" />
-      <button className="loader-skip" onClick={finish}>SKIP ▶▶</button>
+      <button className="loader-skip" onClick={finish}>
+        SKIP ▶▶
+      </button>
       <div className="loader-layout">
         <div className="loader-inner">
-          <div className="loader-bracket tl" /><div className="loader-bracket tr" />
-          <div className="loader-bracket bl" /><div className="loader-bracket br" />
+          <div className="loader-bracket tl" />
+          <div className="loader-bracket tr" />
+          <div className="loader-bracket bl" />
+          <div className="loader-bracket br" />
           <div className="loader-logo">
             <span className="loader-name">IHSAN BIN SAJID</span>
-            <span className="loader-sub">SATELLITE UPLINK // COORD: 10.85N / 76.27E</span>
+            <span className="loader-sub">
+              SATELLITE UPLINK // COORD: 10.85N / 76.27E
+            </span>
           </div>
           <div className="loader-log">
             {LOAD_LINES.slice(0, Math.max(lineIdx + 1, 1)).map((l, i) => (
-              <div key={i} className={`loader-log-line ${i === lineIdx ? "active" : "done"}`}>
-                <span className="loader-log-prefix">{i < lineIdx ? "✓" : "›"}</span> {l}
+              <div
+                key={i}
+                className={`loader-log-line ${i === lineIdx ? "active" : "done"}`}
+              >
+                <span className="loader-log-prefix">
+                  {i < lineIdx ? "✓" : "›"}
+                </span>{" "}
+                {l}
               </div>
             ))}
             {stalling && (
-              <div className={`loader-log-line stall ${stallingFlash ? "stall-vis" : "stall-hid"}`}>
+              <div
+                className={`loader-log-line stall ${stallingFlash ? "stall-vis" : "stall-hid"}`}
+              >
                 <span className="loader-log-prefix">!</span> RETRIEVING...
               </div>
             )}
@@ -434,20 +570,27 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
             <div className="loader-bar-wrap">
               <div className="loader-segments">
                 {Array.from({ length: SEGS }).map((_, i) => (
-                  <div key={i} className={[
-                    "loader-seg",
-                    i < filled ? "filled" : "",
-                    i === filled && !stalling ? "active-seg" : "",
-                    stalling && i === filled ? "stall-seg" : "",
-                  ].join(" ")} />
+                  <div
+                    key={i}
+                    className={[
+                      "loader-seg",
+                      i < filled ? "filled" : "",
+                      i === filled && !stalling ? "active-seg" : "",
+                      stalling && i === filled ? "stall-seg" : "",
+                    ].join(" ")}
+                  />
                 ))}
               </div>
               <div className="loader-pct">{progress}%</div>
             </div>
             <div className={`loader-status${stalling ? " status-stall" : ""}`}>
               {stalling
-                ? stallingFlash ? "⚠ RETRIEVING — DECRYPTION STALLED" : "⚠ RETRYING UPLINK HANDSHAKE..."
-                : progress < 100 ? LOAD_LINES[lineIdx] : "UPLINK ESTABLISHED"}
+                ? stallingFlash
+                  ? "⚠ RETRIEVING — DECRYPTION STALLED"
+                  : "⚠ RETRYING UPLINK HANDSHAKE..."
+                : progress < 100
+                  ? LOAD_LINES[lineIdx]
+                  : "UPLINK ESTABLISHED"}
             </div>
           </div>
         </div>
@@ -463,24 +606,34 @@ const Loader: FC<LoaderProps> = ({ onDone }) => {
 // ─────────────────────────────────────────────────────────────
 //  GLITCH TEXT
 // ─────────────────────────────────────────────────────────────
-interface GlitchTextProps { text: string; className?: string; }
+interface GlitchTextProps {
+  text: string;
+  className?: string;
+}
 const GlitchText: FC<GlitchTextProps> = ({ text, className = "" }) => {
   const [glitching, setGlitching] = useState(false);
   useEffect(() => {
     let id: ReturnType<typeof setTimeout>;
     const schedule = () => {
-      id = setTimeout(() => {
-        setGlitching(true);
-        setTimeout(() => setGlitching(false), 320);
-        schedule();
-      }, 3000 + Math.random() * 3000);
+      id = setTimeout(
+        () => {
+          setGlitching(true);
+          setTimeout(() => setGlitching(false), 320);
+          schedule();
+        },
+        3000 + Math.random() * 3000,
+      );
     };
     schedule();
     return () => clearTimeout(id);
   }, []);
   return (
-    <span className={`glitch-host${glitching ? " glitch-hue" : ""} ${className}`}>
-      <span className="glitch-wrap" data-text={text}>{text}</span>
+    <span
+      className={`glitch-host${glitching ? " glitch-hue" : ""} ${className}`}
+    >
+      <span className="glitch-wrap" data-text={text}>
+        {text}
+      </span>
     </span>
   );
 };
@@ -488,19 +641,32 @@ const GlitchText: FC<GlitchTextProps> = ({ text, className = "" }) => {
 // ─────────────────────────────────────────────────────────────
 //  TYPEWRITER
 // ─────────────────────────────────────────────────────────────
-interface TypeWriterProps { text: string; speed?: number; onDone?: () => void; }
+interface TypeWriterProps {
+  text: string;
+  speed?: number;
+  onDone?: () => void;
+}
 const TypeWriter: FC<TypeWriterProps> = ({ text, speed = 40, onDone }) => {
   const [displayed, setDisplayed] = useState("");
   useEffect(() => {
-    setDisplayed(""); let i = 0;
+    setDisplayed("");
+    let i = 0;
     const id = setInterval(() => {
       i++;
       setDisplayed(text.slice(0, i));
-      if (i >= text.length) { clearInterval(id); onDone?.(); }
+      if (i >= text.length) {
+        clearInterval(id);
+        onDone?.();
+      }
     }, speed);
     return () => clearInterval(id);
   }, [text]); // eslint-disable-line
-  return <span>{displayed}<span className="cursor-blink">█</span></span>;
+  return (
+    <span>
+      {displayed}
+      <span className="cursor-blink">█</span>
+    </span>
+  );
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -510,15 +676,22 @@ const SignalBars: FC = () => {
   const [bars, setBars] = useState([5, 5, 4, 5, 3]);
   useEffect(() => {
     const id = setInterval(() => {
-      setBars((b) => b.map((v) => Math.random() > 0.85 ? Math.floor(Math.random() * 3) + 2 : v));
+      setBars((b) =>
+        b.map((v) =>
+          Math.random() > 0.85 ? Math.floor(Math.random() * 3) + 2 : v,
+        ),
+      );
     }, 800);
     return () => clearInterval(id);
   }, []);
   return (
     <div className="signal-bars">
       {bars.map((h, i) => (
-        <div key={i} className="signal-bar"
-          style={{ height: `${h * 3}px`, opacity: h > 3 ? 1 : 0.35 }} />
+        <div
+          key={i}
+          className="signal-bar"
+          style={{ height: `${h * 3}px`, opacity: h > 3 ? 1 : 0.35 }}
+        />
       ))}
     </div>
   );
@@ -527,7 +700,10 @@ const SignalBars: FC = () => {
 const BitrateCounter: FC = () => {
   const [kbps, setKbps] = useState(1847);
   useEffect(() => {
-    const id = setInterval(() => setKbps(Math.floor(1200 + Math.random() * 1200)), 400);
+    const id = setInterval(
+      () => setKbps(Math.floor(1200 + Math.random() * 1200)),
+      400,
+    );
     return () => clearInterval(id);
   }, []);
   return <span className="bitrate-val">{kbps.toLocaleString()} KBPS</span>;
@@ -605,7 +781,10 @@ const HudOverlays: FC<{ enabled: boolean; scrollJitter: boolean }> = ({
 // ─────────────────────────────────────────────────────────────
 //  EFFECTS TOGGLE
 // ─────────────────────────────────────────────────────────────
-interface EffectsToggleProps { effects: boolean; onChange: (v: boolean) => void; }
+interface EffectsToggleProps {
+  effects: boolean;
+  onChange: (v: boolean) => void;
+}
 const EffectsToggle: FC<EffectsToggleProps> = ({ effects, onChange }) => (
   <div className="fx-toggle" title="Toggle visual effects">
     <span className="fx-label">FX</span>
@@ -663,36 +842,83 @@ const RadarSkills: FC = () => {
           </div>
           <div className="radar-layout">
             <div className="radar-svg-wrap">
-              <svg className="radar-svg" viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE}>
+              <svg
+                className="radar-svg"
+                viewBox={`0 0 ${SIZE} ${SIZE}`}
+                width={SIZE}
+                height={SIZE}
+              >
                 <defs>
                   <radialGradient id="radar-glow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="var(--cyan)" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0" />
+                    <stop
+                      offset="0%"
+                      stopColor="var(--cyan)"
+                      stopOpacity="0.15"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--cyan)"
+                      stopOpacity="0"
+                    />
                   </radialGradient>
                 </defs>
                 <circle cx={CX} cy={CY} r={R} fill="url(#radar-glow)" />
                 {levels.map((l, li) => (
-                  <polygon key={li}
-                    points={SKILLS.map((_, i) => { const p = pt(i, l); return `${p.x},${p.y}`; }).join(" ")}
-                    className="radar-ring" strokeOpacity={0.1 + li * 0.1} />
+                  <polygon
+                    key={li}
+                    points={SKILLS.map((_, i) => {
+                      const p = pt(i, l);
+                      return `${p.x},${p.y}`;
+                    }).join(" ")}
+                    className="radar-ring"
+                    strokeOpacity={0.1 + li * 0.1}
+                  />
                 ))}
                 {SKILLS.map((_, i) => {
                   const end = pt(i, 1);
                   return (
-                    <line key={i} x1={CX} y1={CY} x2={end.x} y2={end.y}
-                      className="radar-axis" />
+                    <line
+                      key={i}
+                      x1={CX}
+                      y1={CY}
+                      x2={end.x}
+                      y2={end.y}
+                      className="radar-axis"
+                    />
                   );
                 })}
                 {active && (
                   <g className="radar-sweep-group">
-                    <line x1={CX} y1={CY} x2={CX} y2={CY - R} className="radar-sweep-line" />
+                    <line
+                      x1={CX}
+                      y1={CY}
+                      x2={CX}
+                      y2={CY - R}
+                      className="radar-sweep-line"
+                    />
                     <path
                       d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 1 ${CX + R * Math.sin(Math.PI / 4)} ${CY - R * Math.cos(Math.PI / 4)} L ${CX} ${CY} Z`}
-                      fill="url(#radar-sweep-grad)" className="radar-sweep-area" />
+                      fill="url(#radar-sweep-grad)"
+                      className="radar-sweep-area"
+                    />
                     <defs>
-                      <linearGradient id="radar-sweep-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="var(--cyan)" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0" />
+                      <linearGradient
+                        id="radar-sweep-grad"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="var(--cyan)"
+                          stopOpacity="0.3"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--cyan)"
+                          stopOpacity="0"
+                        />
                       </linearGradient>
                     </defs>
                   </g>
@@ -700,19 +926,34 @@ const RadarSkills: FC = () => {
                 <polygon points={poly} className="radar-poly-main" />
                 {SKILLS.map((s, i) => {
                   const p = pt(i, s.level / 10);
-                  return <circle key={i} cx={p.x} cy={p.y} r="3" className="radar-vertex" />;
+                  return (
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r="3"
+                      className="radar-vertex"
+                    />
+                  );
                 })}
               </svg>
             </div>
             <div className="radar-data-panel">
               {SKILLS.map((s, i) => (
-                <div key={i} className="radar-data-row" style={{ transitionDelay: `${i * 50}ms` }}>
+                <div
+                  key={i}
+                  className="radar-data-row"
+                  style={{ transitionDelay: `${i * 50}ms` }}
+                >
                   <div className="data-header">
                     <span className="data-label">{s.cat}</span>
                     <span className="data-pct">{s.level * 10}%</span>
                   </div>
                   <div className="data-bar-bg">
-                    <div className="data-bar-fill" style={{ width: active ? `${s.level * 10}%` : "0%" }} />
+                    <div
+                      className="data-bar-fill"
+                      style={{ width: active ? `${s.level * 10}%` : "0%" }}
+                    />
                   </div>
                   <div className="data-items">{s.items.join(" • ")}</div>
                 </div>
@@ -829,22 +1070,28 @@ const COMMANDS: Record<string, CommandFn> = {
     "✓ Best decision you've made all quarter.",
   ],
   clear: () => null,
-  exit:  () => "__EXIT__",
+  exit: () => "__EXIT__",
 };
 
-interface TerminalProps { onClose: () => void; }
+interface TerminalProps {
+  onClose: () => void;
+}
 const Terminal: FC<TerminalProps> = ({ onClose }) => {
-  const [lines,   setLines]   = useState<TermLine[]>([
+  const [lines, setLines] = useState<TermLine[]>([
     { text: "NO-PAT TACTICAL TERMINAL v4.2 — type 'help'", type: "sys" },
   ]);
-  const [input,   setInput]   = useState("");
+  const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
-  const [hIdx,    setHIdx]    = useState(-1);
+  const [hIdx, setHIdx] = useState(-1);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines]);
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [lines]);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const submit = useCallback(() => {
     const cmd = input.trim().toLowerCase();
@@ -855,49 +1102,86 @@ const Terminal: FC<TerminalProps> = ({ onClose }) => {
     const echo: TermLine = { text: `❯ ${cmd}`, type: "input" };
     const handler = COMMANDS[cmd];
     if (!handler) {
-      setLines((l) => [...l, echo, { text: `bash: ${cmd}: command not found`, type: "err" }]);
+      setLines((l) => [
+        ...l,
+        echo,
+        { text: `bash: ${cmd}: command not found`, type: "err" },
+      ]);
       return;
     }
     const result = handler();
     if (result === null) {
-      setLines([{ text: "NO-PAT TACTICAL TERMINAL v4.2 — type 'help'", type: "sys" }]);
+      setLines([
+        { text: "NO-PAT TACTICAL TERMINAL v4.2 — type 'help'", type: "sys" },
+      ]);
       return;
     }
-    if (result === "__EXIT__") { onClose(); return; }
+    if (result === "__EXIT__") {
+      onClose();
+      return;
+    }
     setLines((l) => [
-      ...l, echo,
+      ...l,
+      echo,
       ...(result as string[]).map<TermLine>((t) => ({ text: t, type: "out" })),
     ]);
   }, [input, history, onClose]);
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") { submit(); return; }
+    if (e.key === "Enter") {
+      submit();
+      return;
+    }
     if (e.key === "ArrowUp") {
-      setHIdx((i) => { const n = Math.min(i + 1, history.length - 1); setInput(history[n] ?? ""); return n; });
+      setHIdx((i) => {
+        const n = Math.min(i + 1, history.length - 1);
+        setInput(history[n] ?? "");
+        return n;
+      });
     }
     if (e.key === "ArrowDown") {
-      setHIdx((i) => { const n = Math.max(i - 1, -1); setInput(n === -1 ? "" : history[n]); return n; });
+      setHIdx((i) => {
+        const n = Math.max(i - 1, -1);
+        setInput(n === -1 ? "" : history[n]);
+        return n;
+      });
     }
   };
 
   return (
-    <div className="terminal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="terminal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="terminal-window" onClick={(e) => e.stopPropagation()}>
         <div className="terminal-titlebar">
           <span className="dot red" onClick={onClose} />
           <span className="dot yellow" />
           <span className="dot green" />
-          <span className="terminal-title">NO-PAT OPS // TACTICAL TERMINAL</span>
+          <span className="terminal-title">
+            NO-PAT OPS // TACTICAL TERMINAL
+          </span>
         </div>
-        <div className="terminal-body" onClick={() => inputRef.current?.focus()}>
+        <div
+          className="terminal-body"
+          onClick={() => inputRef.current?.focus()}
+        >
           {lines.map((l, i) => (
-            <div key={i} className={`term-line ${l.type}`}>{l.text}</div>
+            <div key={i} className={`term-line ${l.type}`}>
+              {l.text}
+            </div>
           ))}
           <div className="term-input-row">
             <span className="term-prompt">❯ </span>
-            <input ref={inputRef} className="term-input" value={input}
+            <input
+              ref={inputRef}
+              className="term-input"
+              value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKey} spellCheck={false} autoComplete="off" />
+              onKeyDown={onKey}
+              spellCheck={false}
+              autoComplete="off"
+            />
           </div>
           <div ref={bottomRef} />
         </div>
@@ -930,10 +1214,16 @@ const Nav: FC<NavProps> = ({ onTerminal, effects, onEffects }) => {
       </span>
       <div className="nav-links">
         {["about", "skills", "projects", "experience", "contact"].map((s) => (
-          <button key={s} className="nav-link" onClick={() => scroll(s)}>{s}</button>
+          <button key={s} className="nav-link" onClick={() => scroll(s)}>
+            {s}
+          </button>
         ))}
         <EffectsToggle effects={effects} onChange={onEffects} />
-        <button className="nav-terminal" onClick={onTerminal} title="Open terminal (` key)">
+        <button
+          className="nav-terminal"
+          onClick={onTerminal}
+          title="Open terminal (` key)"
+        >
           <span className="cyan">$_</span>
         </button>
       </div>
@@ -944,7 +1234,11 @@ const Nav: FC<NavProps> = ({ onTerminal, effects, onEffects }) => {
 // ─────────────────────────────────────────────────────────────
 //  HERO
 // ─────────────────────────────────────────────────────────────
-interface HeroProps { onTerminal: () => void; effects: boolean; scrollJitter: boolean; }
+interface HeroProps {
+  onTerminal: () => void;
+  effects: boolean;
+  scrollJitter: boolean;
+}
 const Hero: FC<HeroProps> = ({ onTerminal, effects, scrollJitter }) => {
   const [phase, setPhase] = useState(0);
   return (
@@ -959,11 +1253,17 @@ const Hero: FC<HeroProps> = ({ onTerminal, effects, scrollJitter }) => {
       <HudOverlays enabled={effects} scrollJitter={scrollJitter} />
       <div className="hero-content">
         <div className="hero-eyebrow">
-          <TypeWriter text="PORTFOLIO.EXE — ALL SYSTEMS NOMINAL" speed={26} onDone={() => setPhase(1)} />
+          <TypeWriter
+            text="PORTFOLIO.EXE — ALL SYSTEMS NOMINAL"
+            speed={26}
+            onDone={() => setPhase(1)}
+          />
         </div>
         {phase >= 1 && (
           <>
-            <h1 className="hero-name"><GlitchText text="IHSAN" /></h1>
+            <h1 className="hero-name">
+              <GlitchText text="IHSAN" />
+            </h1>
             <p className="hero-role">
               <span className="cyan">ECE Student</span>
               <span className="sep"> · </span>Linux Kernel Dev
@@ -971,11 +1271,18 @@ const Hero: FC<HeroProps> = ({ onTerminal, effects, scrollJitter }) => {
               <span className="sep"> · </span>Cybersecurity
             </p>
             <p className="hero-location">
-              <span className="cyan">▸</span> Kerala, India &nbsp;·&nbsp; APJ Abdul Kalam Technological University
+              <span className="cyan">▸</span> Kerala, India &nbsp;·&nbsp; APJ
+              Abdul Kalam Technological University
             </p>
             <div className="hero-actions">
-              <button className="btn-primary"
-                onClick={() => document.getElementById("projects")?.scrollIntoView({ behavior: "smooth" })}>
+              <button
+                className="btn-primary"
+                onClick={() =>
+                  document
+                    .getElementById("projects")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
                 View Projects
               </button>
               <button className="btn-ghost" onClick={onTerminal}>
@@ -1004,19 +1311,20 @@ const About: FC = () => {
           <div className="about-text">
             <p>
               Electronics and Computer Engineering student driven by a passion
-              for modifying and optimizing both hardware and software. Experienced
-              in <span className="cyan">embedded systems</span>, IoT connectivity,
-              and Linux kernel development — currently working on upstreaming a
-              driver patch to mainline Linux.
+              for modifying and optimizing both hardware and software.
+              Experienced in <span className="cyan">embedded systems</span>, IoT
+              connectivity, and Linux kernel development — currently working on
+              upstreaming a driver patch to mainline Linux.
             </p>
             <p>
-              I&apos;ve broken buffer overflows, forged CRCs, exploited Modbus ICS,
-              and built a motion capture glove with sub-10 ms latency — mostly for
-              fun. Also shipped Nexus Deck, a BF2042-styled macro-pad app, because
-              the tools you use should look as good as they work.
+              I&apos;ve broken buffer overflows, forged CRCs, exploited Modbus
+              ICS, and built a motion capture glove with sub-10 ms latency —
+              mostly for fun. Also shipped Nexus Deck, a BF2042-styled macro-pad
+              app, because the tools you use should look as good as they work.
             </p>
             <p>
-              Competed at <span className="cyan">NASA Space Apps Challenge 2025</span>.
+              Competed at{" "}
+              <span className="cyan">NASA Space Apps Challenge 2025</span>.
               Running EndeavourOS + Hyprland because comfort is overrated.
             </p>
           </div>
@@ -1051,13 +1359,19 @@ const About: FC = () => {
 const Skills: FC = () => {
   const ref = useScrollReveal<HTMLElement>();
   return (
-    <section id="skills" className="section section-alt reveal-section" ref={ref}>
+    <section
+      id="skills"
+      className="section section-alt reveal-section"
+      ref={ref}
+    >
       <div className="section-inner">
         <h2 className="section-title reveal-title">
           <span className="cyan">02.</span> Skills // Threat Matrix
         </h2>
         <div className="reveal-content">
-          <p className="skills-hint">Hover the radar to expand skill categories</p>
+          <p className="skills-hint">
+            Hover the radar to expand skill categories
+          </p>
           <RadarSkills />
         </div>
       </div>
@@ -1081,14 +1395,18 @@ const Projects: FC = () => {
             <div key={p.id} className="project-card">
               <div className="project-header">
                 <span className="project-id cyan">{p.id}</span>
-                <span className={`project-status ${STATUS_CLASS[p.status]}`}>{p.status}</span>
+                <span className={`project-status ${STATUS_CLASS[p.status]}`}>
+                  {p.status}
+                </span>
               </div>
               <h3 className="project-title">{p.title}</h3>
               <div className="project-period">{p.period}</div>
               <p className="project-desc">{p.desc}</p>
               <div className="project-tags">
                 {p.tags.map((t) => (
-                  <span key={t} className="project-tag">{t}</span>
+                  <span key={t} className="project-tag">
+                    {t}
+                  </span>
                 ))}
               </div>
               {/* Link bar — only renders if the project has a github or demo URL */}
@@ -1136,7 +1454,11 @@ const Projects: FC = () => {
 const Experience: FC = () => {
   const ref = useScrollReveal<HTMLElement>();
   return (
-    <section id="experience" className="section section-alt reveal-section" ref={ref}>
+    <section
+      id="experience"
+      className="section section-alt reveal-section"
+      ref={ref}
+    >
       <div className="section-inner">
         <h2 className="section-title reveal-title">
           <span className="cyan">04.</span> Experience &amp; Certs
@@ -1149,7 +1471,6 @@ const Experience: FC = () => {
         <div className="exp-timeline reveal-content">
           <div className="exp-data-line" />
           <div className="exp-grid">
-
             {/* ── INTERNSHIP ── */}
             <div className="exp-card">
               <div className="exp-node" />
@@ -1161,54 +1482,72 @@ const Experience: FC = () => {
               <div className="exp-period">June 2025 · 1 month</div>
               <p className="exp-desc">
                 Collaborated in an agile team to design and develop the UI for a
-                full-stack vehicle parking web and mobile application. Prototyped
-                cross-platform components in Figma, optimizing UX for real-time
-                parking availability tracking.
+                full-stack vehicle parking web and mobile application.
+                Prototyped cross-platform components in Figma, optimizing UX for
+                real-time parking availability tracking.
               </p>
             </div>
 
             {/* ── NASA SPACE APPS ── */}
             <div className="exp-card">
               <div className="exp-node" />
-              <div className="exp-tag" style={{ color: "#ff9d00", borderColor: "#ff9d00" }}>
+              <div
+                className="exp-tag"
+                style={{ color: "#ff9d00", borderColor: "#ff9d00" }}
+              >
                 NASA
               </div>
               <h3 className="exp-title">NASA Space Apps Challenge 2025</h3>
-              <div className="exp-place">Global Hackathon · Earth Observation Track</div>
+              <div className="exp-place">
+                Global Hackathon · Earth Observation Track
+              </div>
               <div className="exp-period">October 2025</div>
               <p className="exp-desc">
-                Implemented geospatial analytics, climate visualization tools, and
-                machine learning models for challenge problem statements focused on
-                space data innovation and Earth observation.
+                Implemented geospatial analytics, climate visualization tools,
+                and machine learning models for challenge problem statements
+                focused on space data innovation and Earth observation.
               </p>
             </div>
 
             {/* ── CTF ── */}
             <div className="exp-card">
               <div className="exp-node" />
-              <div className="exp-tag" style={{ color: "#ffd700", borderColor: "#ffd700" }}>CTF</div>
+              <div
+                className="exp-tag"
+                style={{ color: "#ffd700", borderColor: "#ffd700" }}
+              >
+                CTF
+              </div>
               <h3 className="exp-title">CTF Practice</h3>
               <div className="exp-place">TryHackMe &amp; HackTheBox</div>
               <div className="exp-period">Ongoing</div>
               <p className="exp-desc">
-                Binary exploitation, Modbus ICS, CRC forgery, web security, Linux
-                privilege escalation. Built custom automation tools and payload
-                scripts in Python and Bash for offensive security scenarios.
+                Binary exploitation, Modbus ICS, CRC forgery, web security,
+                Linux privilege escalation. Built custom automation tools and
+                payload scripts in Python and Bash for offensive security
+                scenarios.
               </p>
             </div>
 
             {/* ── CERT ── */}
             <div className="exp-card">
               <div className="exp-node" />
-              <div className="exp-tag" style={{ color: "#00ff87", borderColor: "#00ff87" }}>CERT</div>
-              <h3 className="exp-title">NASA Space Apps Global Challenge 2025</h3>
+              <div
+                className="exp-tag"
+                style={{ color: "#00ff87", borderColor: "#00ff87" }}
+              >
+                CERT
+              </div>
+              <h3 className="exp-title">
+                NASA Space Apps Global Challenge 2025
+              </h3>
               <div className="exp-place">NASA / Global Organizers</div>
               <div className="exp-period">2025</div>
               <p className="exp-desc">
-                Certified participant in the NASA Space Apps Global Challenge 2025.
+                Certified participant in the NASA Space Apps Global Challenge
+                2025.
               </p>
             </div>
-
           </div>
         </div>
       </div>
@@ -1221,15 +1560,15 @@ const Experience: FC = () => {
 // ─────────────────────────────────────────────────────────────
 const Contact: FC = () => {
   const ref = useScrollReveal<HTMLElement>();
-  const [name,    setName]    = useState("");
+  const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
-  const [body,    setBody]    = useState("");
-  const [sent,    setSent]    = useState(false);
+  const [body, setBody] = useState("");
+  const [sent, setSent] = useState(false);
 
   const handleSend = () => {
     if (!name && !body) return;
-    const to      = "ihsanbinsajid@gmail.com";
-    const sub     = encodeURIComponent(subject || `Portfolio contact from ${name}`);
+    const to = "ihsanbinsajid@gmail.com";
+    const sub = encodeURIComponent(subject || `Portfolio contact from ${name}`);
     const bodyEnc = encodeURIComponent(`From: ${name}\n\n${body}`);
     window.location.href = `mailto:${to}?subject=${sub}&body=${bodyEnc}`;
     setSent(true);
@@ -1244,28 +1583,52 @@ const Contact: FC = () => {
         </h2>
         <div className="reveal-content">
           <p className="contact-sub">
-            Have a project, a question, or a CTF challenge you can&apos;t crack? Reach out.
+            Have a project, a question, or a CTF challenge you can&apos;t crack?
+            Reach out.
           </p>
           <div className="contact-links">
             <a href="mailto:ihsanbinsajid@gmail.com" className="contact-link">
               <span className="cyan">✉</span> ihsanbinsajid@gmail.com
             </a>
-            <a href="https://github.com/Typixal" className="contact-link" target="_blank" rel="noreferrer">
+            <a
+              href="https://github.com/Typixal"
+              className="contact-link"
+              target="_blank"
+              rel="noreferrer"
+            >
               <span className="cyan">⌥</span> github.com/Typixal
             </a>
-            <a href="https://linkedin.com/in/ihsan-bin-sajid" className="contact-link" target="_blank" rel="noreferrer">
+            <a
+              href="https://linkedin.com/in/ihsan-bin-sajid"
+              className="contact-link"
+              target="_blank"
+              rel="noreferrer"
+            >
               <span className="cyan">⬡</span> linkedin.com/in/ihsan-bin-sajid
             </a>
           </div>
           <div className="contact-form">
             <div className="cf-row">
-              <input className="cf-input" placeholder="YOUR NAME"
-                value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="cf-input" placeholder="SUBJECT (optional)"
-                value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <input
+                className="cf-input"
+                placeholder="YOUR NAME"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="cf-input"
+                placeholder="SUBJECT (optional)"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
             </div>
-            <textarea className="cf-textarea" placeholder="YOUR MESSAGE"
-              rows={4} value={body} onChange={(e) => setBody(e.target.value)} />
+            <textarea
+              className="cf-textarea"
+              placeholder="YOUR MESSAGE"
+              rows={4}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+            />
             {!sent ? (
               <button className="btn-primary cf-send" onClick={handleSend}>
                 SEND MESSAGE <span className="cyan">▶</span>
@@ -1276,9 +1639,28 @@ const Contact: FC = () => {
               </div>
             )}
             <p className="cf-note">
-              Opens your default email client pre-filled. For a backend form, integrate
-              <a href="https://resend.com" target="_blank" rel="noreferrer" className="cyan"> Resend</a> or
-              <a href="https://formspree.io" target="_blank" rel="noreferrer" className="cyan"> Formspree</a>.
+              Opens your default email client pre-filled. For a backend form,
+              integrate
+              <a
+                href="https://resend.com"
+                target="_blank"
+                rel="noreferrer"
+                className="cyan"
+              >
+                {" "}
+                Resend
+              </a>{" "}
+              or
+              <a
+                href="https://formspree.io"
+                target="_blank"
+                rel="noreferrer"
+                className="cyan"
+              >
+                {" "}
+                Formspree
+              </a>
+              .
             </p>
           </div>
         </div>
@@ -1290,11 +1672,18 @@ const Contact: FC = () => {
 // ─────────────────────────────────────────────────────────────
 //  FOOTER
 // ─────────────────────────────────────────────────────────────
-interface FooterProps { onTerminal: () => void; }
+interface FooterProps {
+  onTerminal: () => void;
+}
 const Footer: FC<FooterProps> = ({ onTerminal }) => (
   <footer className="footer">
-    <span>built by <span className="cyan">ihsan bin sajid</span> · {new Date().getFullYear()}</span>
-    <button className="footer-egg" onClick={onTerminal} title="psst">$_</button>
+    <span>
+      built by <span className="cyan">ihsan bin sajid</span> ·{" "}
+      {new Date().getFullYear()}
+    </span>
+    <button className="footer-egg" onClick={onTerminal} title="psst">
+      $_
+    </button>
   </footer>
 );
 
@@ -1302,10 +1691,10 @@ const Footer: FC<FooterProps> = ({ onTerminal }) => (
 //  ROOT
 // ─────────────────────────────────────────────────────────────
 export default function Portfolio() {
-  const [loaded,   setLoaded]   = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [terminal, setTerminal] = useState(false);
-  const [flicker,  setFlicker]  = useState(false);
-  const [effects,  setEffects]  = useState(true);
+  const [flicker, setFlicker] = useState(false);
+  const [effects, setEffects] = useState(true);
 
   // Parallax offset for glass orbs
   const parallaxOffset = useParallaxOrbs(0.18);
@@ -1314,14 +1703,19 @@ export default function Portfolio() {
   const scrollJitter = useScrollJitter();
 
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === "`") setTerminal((t) => !t); };
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "`") setTerminal((t) => !t);
+    };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
   }, []);
 
   useEffect(() => {
     if (loaded) return;
-    const fn = () => { setFlicker(true); setTimeout(() => setFlicker(false), 50); };
+    const fn = () => {
+      setFlicker(true);
+      setTimeout(() => setFlicker(false), 50);
+    };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
   }, [loaded]);
@@ -1334,8 +1728,16 @@ export default function Portfolio() {
       {!loaded && <Loader onDone={() => setLoaded(true)} />}
       {terminal && <Terminal onClose={() => setTerminal(false)} />}
       <div className={`site-body${loaded ? " site-visible" : " site-hidden"}`}>
-        <Nav onTerminal={() => setTerminal(true)} effects={effects} onEffects={setEffects} />
-        <Hero onTerminal={() => setTerminal(true)} effects={effects} scrollJitter={scrollJitter} />
+        <Nav
+          onTerminal={() => setTerminal(true)}
+          effects={effects}
+          onEffects={setEffects}
+        />
+        <Hero
+          onTerminal={() => setTerminal(true)}
+          effects={effects}
+          scrollJitter={scrollJitter}
+        />
         <About />
         <Skills />
         <Projects />
